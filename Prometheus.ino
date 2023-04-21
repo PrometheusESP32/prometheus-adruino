@@ -86,8 +86,8 @@ Stepper myStepper1(number_of_steps, motor1_in1, motor1_in2, motor1_in3, motor1_i
 Stepper myStepper2(number_of_steps, motor2_in1, motor2_in2, motor2_in3, motor2_in4);
 Stepper myStepper3(number_of_steps, motor3_in1, motor3_in2, motor3_in3, motor3_in4);
 
-
-void handleRoot(AsyncWebServerRequest *request) {
+void handleRoot(AsyncWebServerRequest *request)
+{
   digitalWrite(led, 1);
   char temp[400];
   int sec = millis() / 1000;
@@ -116,7 +116,8 @@ void handleRoot(AsyncWebServerRequest *request) {
   digitalWrite(led, 0);
 }
 
-void handleNotFound(AsyncWebServerRequest *request) {
+void handleNotFound(AsyncWebServerRequest *request)
+{
   digitalWrite(led, 1);
   String message = "File Not Found\n\n";
   message += "URI: ";
@@ -127,7 +128,8 @@ void handleNotFound(AsyncWebServerRequest *request) {
   message += request->args();
   message += "\n";
 
-  for (uint8_t i = 0; i < request->args(); i++) {
+  for (uint8_t i = 0; i < request->args(); i++)
+  {
     message += " " + request->argName(i) + ": " + request->arg(i) + "\n";
   }
 
@@ -135,7 +137,8 @@ void handleNotFound(AsyncWebServerRequest *request) {
   digitalWrite(led, 0);
 }
 
-void setup(void) {
+void setup(void)
+{
   PT_INIT(&ptMotor1);
   PT_INIT(&ptMotor2);
   pinMode(led, OUTPUT);
@@ -146,7 +149,8 @@ void setup(void) {
   Serial.println("");
 
   // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(500);
     Serial.print(".");
   }
@@ -157,7 +161,8 @@ void setup(void) {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  if (MDNS.begin("esp32")) {
+  if (MDNS.begin("esp32"))
+  {
     Serial.println("MDNS responder started");
   }
 
@@ -165,17 +170,18 @@ void setup(void) {
   server.on("/test.svg", HTTP_GET, drawGraph);
   server.on("/status", HTTP_POST, handleStatus);
   server.on(
-    "/handle/motor1", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor1);
+      "/handle/motor1", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor1);
   server.on(
-    "/handle/motor2", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor2);
+      "/handle/motor2", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor2);
   server.on(
-    "/handle/motor3", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor3);
+      "/handle/motor3", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor3);
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("HTTP server started");
 }
 
-void loop(void) {
+void loop(void)
+{
   // std::thread first(motor1, &newRequest1, direction1, myStepper1, steps1, speed1);
   // std::thread second(motor2, &newRequest2, direction2, myStepper2, steps2, speed2);
 
@@ -199,34 +205,44 @@ void loop(void) {
   PT_SCHEDULE(ptMotor2Thread(&ptMotor2));
 }
 
-int ptMotor1Thread(struct pt *pt) {
+int ptMotor1Thread(struct pt *pt)
+{
   PT_BEGIN(pt);
 
-  while (true) {
+  while (true)
+  {
     motor1(&newRequest1, direction1, myStepper1, steps1, speed1);
   }
 
   PT_END(pt);
 }
 
-int ptMotor2Thread(struct pt *pt) {
+int ptMotor2Thread(struct pt *pt)
+{
   PT_BEGIN(pt);
 
-  while (true) {
+  while (true)
+  {
     motor2(&newRequest2, direction2, myStepper2, steps2, speed2);
   }
 
   PT_END(pt);
 }
 
-void motor1(bool *newRequest, String direction, Stepper myStepper, int steps, int speed) {
-  while (true) {
-    if (*newRequest) {
-      if (direction.equals("CW")) {
+void motor1(bool *newRequest, String direction, Stepper myStepper, int steps, int speed)
+{
+  while (true)
+  {
+    if (*newRequest)
+    {
+      if (direction.equals("CW"))
+      {
         myStepper.setSpeed(speed);
         // Spin the stepper clockwise direction
         myStepper.step(steps);
-      } else {
+      }
+      else
+      {
         myStepper.setSpeed(speed);
         // Spin the stepper counterclockwise direction
         myStepper.step(-steps);
@@ -236,14 +252,20 @@ void motor1(bool *newRequest, String direction, Stepper myStepper, int steps, in
   }
 }
 
-void motor2(bool *newRequest, String direction, Stepper myStepper, int steps, int speed) {
-  while (true) {
-    if (*newRequest) {
-      if (direction.equals("CW")) {
+void motor2(bool *newRequest, String direction, Stepper myStepper, int steps, int speed)
+{
+  while (true)
+  {
+    if (*newRequest)
+    {
+      if (direction.equals("CW"))
+      {
         myStepper.setSpeed(speed);
         // Spin the stepper clockwise direction
         myStepper.step(steps);
-      } else {
+      }
+      else
+      {
         myStepper.setSpeed(speed);
         // Spin the stepper counterclockwise direction
         myStepper.step(-steps);
@@ -253,14 +275,16 @@ void motor2(bool *newRequest, String direction, Stepper myStepper, int steps, in
   }
 }
 
-void drawGraph(AsyncWebServerRequest *request) {
+void drawGraph(AsyncWebServerRequest *request)
+{
   String out = "";
   char temp[100];
   out += "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"400\" height=\"150\">\n";
   out += "<rect width=\"400\" height=\"150\" fill=\"rgb(250, 230, 210)\" stroke-width=\"1\" stroke=\"rgb(0, 0, 0)\" />\n";
   out += "<g stroke=\"black\">\n";
   int y = rand() % 130;
-  for (int x = 10; x < 390; x += 10) {
+  for (int x = 10; x < 390; x += 10)
+  {
     int y2 = rand() % 130;
     sprintf(temp, "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke-width=\"1\" />\n", x, 140 - y, x + 10, 140 - y2);
     out += temp;
@@ -271,8 +295,10 @@ void drawGraph(AsyncWebServerRequest *request) {
   request->send(200, "image/svg+xml", out);
 }
 
-void handleStatus(AsyncWebServerRequest *request) {
-  for (int i = 0; i < 3; i++) {
+void handleStatus(AsyncWebServerRequest *request)
+{
+  for (int i = 0; i < 3; i++)
+  {
     digitalWrite(led, 1);
     delay(500);
     digitalWrite(led, 0);
@@ -281,13 +307,15 @@ void handleStatus(AsyncWebServerRequest *request) {
   request->send(200, "text/plain", "OK");
 }
 
-JsonObject mapJsonObject(uint8_t *data) {
+JsonObject mapJsonObject(uint8_t *data)
+{
   DynamicJsonDocument doc(1024);
   deserializeJson(doc, String((char *)data));
   return doc.as<JsonObject>();
 }
 
-void handleMotor1(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+void handleMotor1(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+{
   JsonObject root = mapJsonObject(data);
   const int speed = root["speed"];
   const int steps = root["spr"];
@@ -302,7 +330,8 @@ void handleMotor1(AsyncWebServerRequest *request, uint8_t *data, size_t len, siz
   newRequest1 = true;
 }
 
-void handleMotor2(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+void handleMotor2(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+{
   JsonObject root = mapJsonObject(data);
   const int speed = root["speed"];
   const int steps = root["spr"];
@@ -317,7 +346,8 @@ void handleMotor2(AsyncWebServerRequest *request, uint8_t *data, size_t len, siz
   newRequest2 = true;
 }
 
-void handleMotor3(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+void handleMotor3(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+{
   JsonObject root = mapJsonObject(data);
   const int speed = root["speed"];
   const int steps = root["spr"];
