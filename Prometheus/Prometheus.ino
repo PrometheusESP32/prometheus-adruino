@@ -33,113 +33,162 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebSrv.h>
 #include <ESPmDNS.h>
-#include <Stepper.h>
 #include <ArduinoJson.h>
 #include <string>
-#include <thread>
-#include <protothreads.h>
 
-pt ptMotor1;
-pt ptMotor2;
+class MyStepper {
+private:
+  long step;
+  long currentPosition;
+  long moveTo;
+  int mode;
+  int speedMotor;
+  int in1;
+  int in2;
+  int in3;
+  int in4;
+
+public:
+  MyStepper(int m, int a, int b, int c, int d) {
+    Serial.printf("Detail : MODE(%d) IN1(%d) IN2(%d) IN3(%d) IN4(%d)\n", mode, in1, in2, in3, in4);
+    mode = m;
+    in1 = a;
+    in2 = b;
+    in3 = c;
+    in4 = d;
+    pinMode(in1, OUTPUT);
+    pinMode(in2, OUTPUT);
+    pinMode(in3, OUTPUT);
+    pinMode(in4, OUTPUT);
+  }
+  void setStep(long s) {
+    step = s;
+  }
+
+  long getStep() {
+    return step;
+  }
+
+  void setCurrentPosition(long s) {
+    currentPosition = s;
+  }
+
+  long getCurrentPosition() {
+    return currentPosition;
+  }
+
+  void setMoveTo(long s) {
+    moveTo = s;
+  }
+
+  long getMoveTo() {
+    return moveTo;
+  }
+
+  void setSpeedMotor(int s) {
+    speedMotor = s;
+  }
+
+  int getSpeedMotor() {
+    return speedMotor;
+  }
+
+  int getDistantPosition() {
+    return currentPosition - moveTo;
+  }
+
+  void run() {
+    const int fullStep[4][4] = {
+      { 1, 0, 0, 1 }, { 1, 1, 0, 0 }, { 0, 1, 1, 0 }, { 0, 0, 1, 1 }
+    };
+    const int halfStep[8][4] = {
+      { 1, 0, 0, 1 }, { 1, 0, 0, 0 }, { 1, 1, 0, 0 }, { 0, 1, 0, 0 }, { 0, 1, 1, 0 }, { 0, 0, 1, 0 }, { 0, 0, 1, 1 }, { 0, 0, 0, 1 }
+    };
+    // Serial.printf("Detail : currentPosition(%d) moveTo(%d) IN1(%d) IN2(%d) IN3(%d) IN4(%d)\n", currentPosition, moveTo, in1, in2, in3, in4);
+    if (moveTo > currentPosition) {
+      if (mode == 1) {
+        for (int i = 0; i < 4; i++) {
+          if (currentPosition != moveTo) {
+            digitalWrite(in1, fullStep[i][0]);
+            digitalWrite(in2, fullStep[i][1]);
+            digitalWrite(in3, fullStep[i][2]);
+            digitalWrite(in4, fullStep[i][3]);
+            currentPosition += 1;
+            Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 4, fullStep[i][0], fullStep[i][1], fullStep[i][2], fullStep[i][3]);
+            vTaskDelay(speedMotor);
+          }
+        }
+      } else if (mode == 2) {
+        for (int i = 0; i < 8; i++) {
+          if (currentPosition != moveTo) {
+            digitalWrite(in1, halfStep[i][0]);
+            digitalWrite(in2, halfStep[i][1]);
+            digitalWrite(in3, halfStep[i][2]);
+            digitalWrite(in4, halfStep[i][3]);
+            currentPosition += 1;
+            Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 8, halfStep[i][0], halfStep[i][1], halfStep[i][2], halfStep[i][3]);
+            vTaskDelay(speedMotor);
+          }
+        }
+      }
+    } else if (moveTo < currentPosition) {
+      if (mode == 1) {
+        for (int i = 4 - 1; i >= 0; i--) {
+          if (currentPosition != moveTo) {
+            digitalWrite(in1, fullStep[i][0]);
+            digitalWrite(in2, fullStep[i][1]);
+            digitalWrite(in3, fullStep[i][2]);
+            digitalWrite(in4, fullStep[i][3]);
+            currentPosition -= 1;
+            Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 4, fullStep[i][0], fullStep[i][1], fullStep[i][2], fullStep[i][3]);
+            vTaskDelay(speedMotor);
+          }
+        }
+      } else if (mode == 2) {
+        for (int i = 8 - 1; i >= 0; i--) {
+          if (currentPosition != moveTo) {
+            digitalWrite(in1, halfStep[i][0]);
+            digitalWrite(in2, halfStep[i][1]);
+            digitalWrite(in3, halfStep[i][2]);
+            digitalWrite(in4, halfStep[i][3]);
+            currentPosition -= 1;
+            Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 8, halfStep[i][0], halfStep[i][1], halfStep[i][2], halfStep[i][3]);
+            vTaskDelay(speedMotor);
+          }
+        }
+      }
+    }
+  }
+};
+
+#define MOTOR1_IN1 23
+#define MOTOR1_IN2 22
+#define MOTOR1_IN3 21
+#define MOTOR1_IN4 19
+
+#define MOTOR2_IN1 32
+#define MOTOR2_IN2 33
+#define MOTOR2_IN3 25
+#define MOTOR2_IN4 26
+
+// #define MOTOR3_IN1 16
+// #define MOTOR3_IN1 17
+// #define MOTOR3_IN1 32
+// #define MOTOR3_IN1 33
+
+MyStepper stepper1(1, MOTOR1_IN1, MOTOR1_IN2, MOTOR1_IN3, MOTOR1_IN4);
+MyStepper stepper2(1, MOTOR2_IN1, MOTOR2_IN2, MOTOR2_IN3, MOTOR2_IN4);
 
 const char *ssid = "Naras";
 const char *password = "-Naras-CPE290821-";
 
 AsyncWebServer server(80);
 
-int motor1_in1 = 18;
-int motor1_in2 = 19;
-int motor1_in3 = 12;
-int motor1_in4 = 13;
-
-int motor2_in1 = 22;
-int motor2_in2 = 23;
-int motor2_in3 = 25;
-int motor2_in4 = 26;
-
-int motor3_in1 = 16;
-int motor3_in2 = 17;
-int motor3_in3 = 32;
-int motor3_in4 = 33;
-
-bool newRequest1 = false;
-bool newRequest2 = false;
-bool newRequest3 = false;
-
-String direction1 = "";
-String direction2 = "";
-String direction3 = "";
-
-int speed1 = 0;
-int speed2 = 0;
-int speed3 = 0;
-
-int steps1 = 0;
-int steps2 = 0;
-int steps3 = 0;
-
-const int led = 2;
-
-const int number_of_steps = 2048;
-
-Stepper myStepper1(number_of_steps, motor1_in1, motor1_in2, motor1_in3, motor1_in4);
-Stepper myStepper2(number_of_steps, motor2_in1, motor2_in2, motor2_in3, motor2_in4);
-Stepper myStepper3(number_of_steps, motor3_in1, motor3_in2, motor3_in3, motor3_in4);
-
-
-void handleRoot(AsyncWebServerRequest *request) {
-  digitalWrite(led, 1);
-  char temp[400];
-  int sec = millis() / 1000;
-  int min = sec / 60;
-  int hr = min / 60;
-
-  snprintf(temp, 400,
-
-           "<html>\
-  <head>\
-    <meta http-equiv='refresh' content='5'/>\
-    <title>ESP32 Demo</title>\
-    <style>\
-      body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
-    </style>\
-  </head>\
-  <body>\
-    <h1>Hello from ESP32!</h1>\
-    <p>Uptime: %02d:%02d:%02d</p>\
-    <img src=\"/test.svg\" />\
-  </body>\
-</html>",
-
-           hr, min % 60, sec % 60);
-  request->send(200, "text/html", temp);
-  digitalWrite(led, 0);
-}
-
-void handleNotFound(AsyncWebServerRequest *request) {
-  digitalWrite(led, 1);
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += request->url();
-  message += "\nMethod: ";
-  message += (request->method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += request->args();
-  message += "\n";
-
-  for (uint8_t i = 0; i < request->args(); i++) {
-    message += " " + request->argName(i) + ": " + request->arg(i) + "\n";
-  }
-
-  request->send(404, "text/plain", message);
-  digitalWrite(led, 0);
-}
+const int LED = 2;
 
 void setup(void) {
-  PT_INIT(&ptMotor1);
-  PT_INIT(&ptMotor2);
-  pinMode(led, OUTPUT);
-  digitalWrite(led, 0);
+  pinMode(LED, OUTPUT);
+  digitalWrite(LED, 0);
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -165,92 +214,100 @@ void setup(void) {
   server.on("/test.svg", HTTP_GET, drawGraph);
   server.on("/status", HTTP_POST, handleStatus);
   server.on(
-    "/handle/motor1", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor1);
-  server.on(
-    "/handle/motor2", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor2);
-  server.on(
-    "/handle/motor3", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor3);
+    "/handle/motor", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor);
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("HTTP server started");
+
+  stepper1.setStep(500);
+  stepper1.setCurrentPosition(0);
+  stepper1.setSpeedMotor(10);
+  stepper2.setStep(500);
+  stepper2.setCurrentPosition(0);
+  stepper2.setSpeedMotor(10);
+  xTaskCreatePinnedToCore(motor1, "motor1", 2048, NULL, 2, NULL, ARDUINO_RUNNING_CORE);
+  xTaskCreatePinnedToCore(motor2, "motor2", 2048, NULL, 2, NULL, ARDUINO_RUNNING_CORE);
+}
+
+void motor1(void *pvParameters) {
+  (void)pvParameters;
+  while (1) {
+    stepper1.run();
+  }
+}
+
+void motor2(void *pvParameters) {
+  (void)pvParameters;
+  while (1) {
+    stepper2.run();
+  }
 }
 
 void loop(void) {
-  // std::thread first(motor1, &newRequest1, direction1, myStepper1, steps1, speed1);
-  // std::thread second(motor2, &newRequest2, direction2, myStepper2, steps2, speed2);
-
-  // first.join();
-  // second.join();
-
-  // if (newRequest3) {
-  //   if (direction3.equals("CW")) {
-  //     myStepper3.setSpeed(speed3);
-  //     // Spin the stepper clockwise direction
-  //     myStepper3.step(steps3);
-  //   } else {
-  //     myStepper3.setSpeed(speed3);
-  //     // Spin the stepper counterclockwise direction
-  //     myStepper3.step(-steps3);
-  //   }
-  //   newRequest3 = false;
-  // }
-
-  PT_SCHEDULE(ptMotor1Thread(&ptMotor1));
-  PT_SCHEDULE(ptMotor2Thread(&ptMotor2));
 }
 
-int ptMotor1Thread(struct pt *pt) {
-  PT_BEGIN(pt);
-
-  while (true) {
-    motor1(&newRequest1, direction1, myStepper1, steps1, speed1);
-  }
-
-  PT_END(pt);
-}
-
-int ptMotor2Thread(struct pt *pt) {
-  PT_BEGIN(pt);
-
-  while (true) {
-    motor2(&newRequest2, direction2, myStepper2, steps2, speed2);
-  }
-
-  PT_END(pt);
-}
-
-void motor1(bool *newRequest, String direction, Stepper myStepper, int steps, int speed) {
-  while (true) {
-    if (*newRequest) {
-      if (direction.equals("CW")) {
-        myStepper.setSpeed(speed);
-        // Spin the stepper clockwise direction
-        myStepper.step(steps);
-      } else {
-        myStepper.setSpeed(speed);
-        // Spin the stepper counterclockwise direction
-        myStepper.step(-steps);
+void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+  DynamicJsonDocument root = mapJsonObject(data);
+  if (!root["positions"].isNull()) {
+    JsonArray positionsRaw = root["positions"];
+    for (JsonObject repo : positionsRaw) {
+      if (repo["index"].as<int>() == 0) {
+        stepper1.setMoveTo(repo["value"].as<long>());
+      } else if (repo["index"].as<int>() == 1) {
+        stepper2.setMoveTo(repo["value"].as<long>());
       }
-      *newRequest = false;
+      Serial.printf("Index : %d Value : %d\n", repo["index"].as<int>(), repo["value"].as<long>());
     }
   }
+  request->send(200, "application/json", "ok");
 }
 
-void motor2(bool *newRequest, String direction, Stepper myStepper, int steps, int speed) {
-  while (true) {
-    if (*newRequest) {
-      if (direction.equals("CW")) {
-        myStepper.setSpeed(speed);
-        // Spin the stepper clockwise direction
-        myStepper.step(steps);
-      } else {
-        myStepper.setSpeed(speed);
-        // Spin the stepper counterclockwise direction
-        myStepper.step(-steps);
-      }
-      *newRequest = false;
-    }
+void handleRoot(AsyncWebServerRequest *request) {
+  digitalWrite(LED, 1);
+  char temp[400];
+  int sec = millis() / 1000;
+  int min = sec / 60;
+  int hr = min / 60;
+
+  snprintf(temp, 400,
+
+           "<html>\
+  <head>\
+    <meta http-equiv='refresh' content='5'/>\
+    <title>ESP32 Demo</title>\
+    <style>\
+      body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
+    </style>\
+  </head>\
+  <body>\
+    <h1>Hello from ESP32!</h1>\
+    <p>Uptime: %02d:%02d:%02d</p>\
+    <img src=\"/test.svg\" />\
+  </body>\
+</html>",
+
+           hr, min % 60, sec % 60);
+  request->send(200, "text/html", temp);
+  digitalWrite(LED, 0);
+}
+
+void handleNotFound(AsyncWebServerRequest *request) {
+  digitalWrite(LED, 1);
+  String message = "File Not Found\n\n";
+  message += "URI: ";
+  message += request->url();
+  message += "\nMethod: ";
+  message += (request->method() == HTTP_GET) ? "GET" : "POST";
+  message += "\nArguments: ";
+  message += request->args();
+  message += "\n";
+
+  for (uint8_t i = 0; i < request->args(); i++) {
+    message += " " + request->argName(i) + ": " + request->arg(i) + "\n";
   }
+
+  request->send(404, "text/plain", message);
+  digitalWrite(LED, 0);
 }
 
 void drawGraph(AsyncWebServerRequest *request) {
@@ -273,61 +330,16 @@ void drawGraph(AsyncWebServerRequest *request) {
 
 void handleStatus(AsyncWebServerRequest *request) {
   for (int i = 0; i < 3; i++) {
-    digitalWrite(led, 1);
+    digitalWrite(LED, 1);
     delay(500);
-    digitalWrite(led, 0);
+    digitalWrite(LED, 0);
     delay(500);
   }
   request->send(200, "text/plain", "OK");
 }
 
-JsonObject mapJsonObject(uint8_t *data) {
-  DynamicJsonDocument doc(1024);
+DynamicJsonDocument mapJsonObject(uint8_t *data) {
+  DynamicJsonDocument doc(2048);
   deserializeJson(doc, String((char *)data));
-  return doc.as<JsonObject>();
-}
-
-void handleMotor1(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-  JsonObject root = mapJsonObject(data);
-  const int speed = root["speed"];
-  const int steps = root["spr"];
-  const String direction = root["direction"];
-  speed1 = speed;
-  steps1 = steps;
-  direction1 = direction;
-  request->send(200, "application/json", "ok");
-  Serial.printf("Motor 1 : speed : %d\n", speed);
-  Serial.printf("Motor 1 : stepsPerRevolution : %d\n", steps);
-  Serial.printf("Motor 1 : direction : %s\n", direction);
-  newRequest1 = true;
-}
-
-void handleMotor2(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-  JsonObject root = mapJsonObject(data);
-  const int speed = root["speed"];
-  const int steps = root["spr"];
-  const String direction = root["direction"];
-  speed2 = speed;
-  steps2 = steps;
-  direction2 = direction;
-  request->send(200, "application/json", "ok");
-  Serial.printf("Motor 2 : speed : %d\n", speed);
-  Serial.printf("Motor 2 : stepsPerRevolution : %d\n", steps);
-  Serial.printf("Motor 2 : direction : %s\n", direction);
-  newRequest2 = true;
-}
-
-void handleMotor3(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-  JsonObject root = mapJsonObject(data);
-  const int speed = root["speed"];
-  const int steps = root["spr"];
-  const String direction = root["direction"];
-  speed3 = speed;
-  steps3 = steps;
-  direction3 = direction;
-  request->send(200, "application/json", "ok");
-  Serial.printf("Motor 3 : speed : %d\n", speed);
-  Serial.printf("Motor 3 : stepsPerRevolution : %d\n", steps);
-  Serial.printf("Motor 3 : direction : %s\n", direction);
-  newRequest3 = true;
+  return doc;
 }
