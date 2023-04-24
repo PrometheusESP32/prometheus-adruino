@@ -171,13 +171,14 @@ public:
 #define MOTOR2_IN3 25
 #define MOTOR2_IN4 26
 
-// #define MOTOR3_IN1 16
-// #define MOTOR3_IN1 17
-// #define MOTOR3_IN1 32
-// #define MOTOR3_IN1 33
+#define MOTOR3_IN1 27
+#define MOTOR3_IN2 14
+#define MOTOR3_IN3 13
+#define MOTOR3_IN4 18
 
 MyStepper stepper1(1, MOTOR1_IN1, MOTOR1_IN2, MOTOR1_IN3, MOTOR1_IN4);
 MyStepper stepper2(1, MOTOR2_IN1, MOTOR2_IN2, MOTOR2_IN3, MOTOR2_IN4);
+MyStepper stepper3(1, MOTOR3_IN1, MOTOR3_IN2, MOTOR3_IN3, MOTOR3_IN4);
 
 const char *ssid = "Naras";
 const char *password = "-Naras-CPE290821-";
@@ -219,14 +220,15 @@ void setup(void) {
   server.begin();
   Serial.println("HTTP server started");
 
-  stepper1.setStep(500);
   stepper1.setCurrentPosition(0);
-  stepper1.setSpeedMotor(10);
-  stepper2.setStep(500);
+  stepper1.setSpeedMotor(7);
   stepper2.setCurrentPosition(0);
-  stepper2.setSpeedMotor(10);
+  stepper2.setSpeedMotor(7);
+  stepper3.setCurrentPosition(0);
+  stepper3.setSpeedMotor(7);
   xTaskCreatePinnedToCore(motor1, "motor1", 2048, NULL, 2, NULL, ARDUINO_RUNNING_CORE);
   xTaskCreatePinnedToCore(motor2, "motor2", 2048, NULL, 2, NULL, ARDUINO_RUNNING_CORE);
+  xTaskCreatePinnedToCore(motor3, "motor3", 2048, NULL, 2, NULL, ARDUINO_RUNNING_CORE);
 }
 
 void motor1(void *pvParameters) {
@@ -243,6 +245,13 @@ void motor2(void *pvParameters) {
   }
 }
 
+void motor3(void *pvParameters) {
+  (void)pvParameters;
+  while (1) {
+    stepper3.run();
+  }
+}
+
 void loop(void) {
 }
 
@@ -255,6 +264,8 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
         stepper1.setMoveTo(repo["value"].as<long>());
       } else if (repo["index"].as<int>() == 1) {
         stepper2.setMoveTo(repo["value"].as<long>());
+      } else if (repo["index"].as<int>() == 2) {
+        stepper3.setMoveTo(repo["value"].as<long>());
       }
       Serial.printf("Index : %d Value : %d\n", repo["index"].as<int>(), repo["value"].as<long>());
     }
