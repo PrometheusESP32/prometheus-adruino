@@ -36,6 +36,31 @@
 #include <ArduinoJson.h>
 #include <string>
 
+TaskHandle_t Task1;
+TaskHandle_t Task2;
+TaskHandle_t Task3;
+TaskHandle_t Task4;
+
+void motor(void *pvParameters) {
+  char *data = ((char *)pvParameters);
+  Serial.println(data);
+
+  // int num[2];
+  // int index = 0;
+  // while (json != NULL) {
+  //   num[index] = stoi(json);
+  //   json = strtok(NULL, ",");
+  //   index += 1;
+  // }
+  // const int speedMotor = num[0];
+  // const int moveTo = num[1];
+  // Serial.printf("moveTo(%d) speedMotor(%d)\n", moveTo, speedMotor);
+  // for (int i = 0; i <= moveTo; i++) {
+  //   Serial.printf("Print from thread(%d) index(%d) in value %d....\n", xPortGetCoreID(), i, moveTo);
+  // }
+  vTaskDelete(NULL);
+}
+
 class MyStepper {
 private:
   long step;
@@ -47,71 +72,7 @@ private:
   int in2;
   int in3;
   int in4;
-
-  void run() {
-    const int fullStep[4][4] = {
-      { 1, 0, 0, 1 }, { 1, 1, 0, 0 }, { 0, 1, 1, 0 }, { 0, 0, 1, 1 }
-    };
-    const int halfStep[8][4] = {
-      { 1, 0, 0, 1 }, { 1, 0, 0, 0 }, { 1, 1, 0, 0 }, { 0, 1, 0, 0 }, { 0, 1, 1, 0 }, { 0, 0, 1, 0 }, { 0, 0, 1, 1 }, { 0, 0, 0, 1 }
-    };
-    while (1) {
-      // Serial.printf("Detail : currentPosition(%d) moveTo(%d) IN1(%d) IN2(%d) IN3(%d) IN4(%d)\n", currentPosition, moveTo, in1, in2, in3, in4);
-      if (moveTo > currentPosition) {
-        if (mode == 1) {
-          for (int i = 0; i < 4; i++) {
-            if (currentPosition != moveTo) {
-              digitalWrite(in1, fullStep[i][0]);
-              digitalWrite(in2, fullStep[i][1]);
-              digitalWrite(in3, fullStep[i][2]);
-              digitalWrite(in4, fullStep[i][3]);
-              currentPosition += 1;
-              Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 4, fullStep[i][0], fullStep[i][1], fullStep[i][2], fullStep[i][3]);
-              vTaskDelay(speedMotor);
-            }
-          }
-        } else if (mode == 2) {
-          for (int i = 0; i < 8; i++) {
-            if (currentPosition != moveTo) {
-              digitalWrite(in1, halfStep[i][0]);
-              digitalWrite(in2, halfStep[i][1]);
-              digitalWrite(in3, halfStep[i][2]);
-              digitalWrite(in4, halfStep[i][3]);
-              currentPosition += 1;
-              Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 8, halfStep[i][0], halfStep[i][1], halfStep[i][2], halfStep[i][3]);
-              vTaskDelay(speedMotor);
-            }
-          }
-        }
-      } else if (moveTo < currentPosition) {
-        if (mode == 1) {
-          for (int i = 4 - 1; i >= 0; i--) {
-            if (currentPosition != moveTo) {
-              digitalWrite(in1, fullStep[i][0]);
-              digitalWrite(in2, fullStep[i][1]);
-              digitalWrite(in3, fullStep[i][2]);
-              digitalWrite(in4, fullStep[i][3]);
-              currentPosition -= 1;
-              Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 4, fullStep[i][0], fullStep[i][1], fullStep[i][2], fullStep[i][3]);
-              vTaskDelay(speedMotor);
-            }
-          }
-        } else if (mode == 2) {
-          for (int i = 8 - 1; i >= 0; i--) {
-            if (currentPosition != moveTo) {
-              digitalWrite(in1, halfStep[i][0]);
-              digitalWrite(in2, halfStep[i][1]);
-              digitalWrite(in3, halfStep[i][2]);
-              digitalWrite(in4, halfStep[i][3]);
-              currentPosition -= 1;
-              Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 8, halfStep[i][0], halfStep[i][1], halfStep[i][2], halfStep[i][3]);
-              vTaskDelay(speedMotor);
-            }
-          }
-        }
-      }
-    }
-  }
+  char *name;
 
 public:
   MyStepper(int m, int a, int b, int c, int d) {
@@ -162,9 +123,101 @@ public:
     return currentPosition - moveTo;
   }
 
-  void ready() {
-    run();
+  void setName(char *s) {
+    name = s;
   }
+
+  char *getName() {
+    return name;
+  }
+
+  void run(int num) {
+    if (moveTo != currentPosition) {
+      // Serial.printf("Detail : currentPosition(%d) moveTo(%d) IN1(%d) IN2(%d) IN3(%d) IN4(%d)\n", currentPosition, moveTo, in1, in2, in3, in4);
+      char value[100];
+      snprintf(value, 100, "%d,%d", moveTo, speedMotor);
+      try {
+        switch (num) {
+          case 1:
+            xTaskCreatePinnedToCore(motor, getName(), configMINIMAL_STACK_SIZE, (void *)value, 1, &Task1, ARDUINO_RUNNING_CORE);
+            break;
+          case 2:
+            xTaskCreatePinnedToCore(motor, getName(), configMINIMAL_STACK_SIZE, (void *)value, 1, &Task2, ARDUINO_RUNNING_CORE);
+            break;
+          case 3:
+            xTaskCreatePinnedToCore(motor, getName(), configMINIMAL_STACK_SIZE, (void *)value, 1, &Task3, ARDUINO_RUNNING_CORE);
+            break;
+          case 4:
+            xTaskCreatePinnedToCore(motor, getName(), configMINIMAL_STACK_SIZE, (void *)value, 1, &Task4, ARDUINO_RUNNING_CORE);
+            break;
+        }
+      } catch (...) {
+        Serial.printf("Create task error.");
+      }
+    }
+    // for (int index = 0; index <= indexMoveto; index++) {
+    //   if (moveTo > currentPosition) {
+    //     if (mode == 1) {
+    //       for (int i = 0; i < 4; i++) {
+    //         if (currentPosition != moveTo) {
+    //           digitalWrite(in1, fullStep[i][0]);
+    //           digitalWrite(in2, fullStep[i][1]);
+    //           digitalWrite(in3, fullStep[i][2]);
+    //           digitalWrite(in4, fullStep[i][3]);
+    //           currentPosition += 1;
+    //           Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 4, fullStep[i][0], fullStep[i][1], fullStep[i][2], fullStep[i][3]);
+    //           vTaskDelay(speedMotor);
+    //         }
+    //       }
+    //     } else if (mode == 2) {
+    //       for (int i = 0; i < 8; i++) {
+    //         if (currentPosition != moveTo) {
+    //           digitalWrite(in1, halfStep[i][0]);
+    //           digitalWrite(in2, halfStep[i][1]);
+    //           digitalWrite(in3, halfStep[i][2]);
+    //           digitalWrite(in4, halfStep[i][3]);
+    //           currentPosition += 1;
+    //           Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 8, halfStep[i][0], halfStep[i][1], halfStep[i][2], halfStep[i][3]);
+    //           vTaskDelay(speedMotor);
+    //         }
+    //       }
+    //     }
+    //   } else if (moveTo < currentPosition) {
+    //     if (mode == 1) {
+    //       for (int i = 4 - 1; i >= 0; i--) {
+    //         if (currentPosition != moveTo) {
+    //           digitalWrite(in1, fullStep[i][0]);
+    //           digitalWrite(in2, fullStep[i][1]);
+    //           digitalWrite(in3, fullStep[i][2]);
+    //           digitalWrite(in4, fullStep[i][3]);
+    //           currentPosition -= 1;
+    //           Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 4, fullStep[i][0], fullStep[i][1], fullStep[i][2], fullStep[i][3]);
+    //           vTaskDelay(speedMotor);
+    //         }
+    //       }
+    //     } else if (mode == 2) {
+    //       for (int i = 8 - 1; i >= 0; i--) {
+    //         if (currentPosition != moveTo) {
+    //           digitalWrite(in1, halfStep[i][0]);
+    //           digitalWrite(in2, halfStep[i][1]);
+    //           digitalWrite(in3, halfStep[i][2]);
+    //           digitalWrite(in4, halfStep[i][3]);
+    //           currentPosition -= 1;
+    //           Serial.printf("Detail : CORE(%d) currentPosition(%d) SIZE(%d) B1(%d) B2(%d) B3(%d) B4(%d)\n", xPortGetCoreID(), currentPosition, 8, halfStep[i][0], halfStep[i][1], halfStep[i][2], halfStep[i][3]);
+    //           vTaskDelay(speedMotor);
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
+  }
+};
+
+static int fullStep[4][4] = {
+  { 1, 0, 0, 1 }, { 1, 1, 0, 0 }, { 0, 1, 1, 0 }, { 0, 0, 1, 1 }
+};
+static int halfStep[8][4] = {
+  { 1, 0, 0, 1 }, { 1, 0, 0, 0 }, { 1, 1, 0, 0 }, { 0, 1, 0, 0 }, { 0, 1, 1, 0 }, { 0, 0, 1, 0 }, { 0, 0, 1, 1 }, { 0, 0, 0, 1 }
 };
 
 #define MOTOR1_IN1 23
@@ -187,11 +240,6 @@ public:
 #define MOTOR4_IN3 17
 #define MOTOR4_IN4 5
 
-MyStepper stepper1(1, MOTOR1_IN1, MOTOR1_IN2, MOTOR1_IN3, MOTOR1_IN4);
-MyStepper stepper2(1, MOTOR2_IN1, MOTOR2_IN2, MOTOR2_IN3, MOTOR2_IN4);
-MyStepper stepper3(1, MOTOR3_IN1, MOTOR3_IN2, MOTOR3_IN3, MOTOR3_IN4);
-MyStepper stepper4(1, MOTOR4_IN1, MOTOR4_IN2, MOTOR4_IN3, MOTOR4_IN4);
-
 const char *ssid = "Naras";
 const char *password = "-Naras-CPE290821-";
 
@@ -199,25 +247,10 @@ AsyncWebServer server(80);
 
 const int LED = 2;
 
-void motor1(void *pvParameters) {
-  (void)pvParameters;
-  stepper1.ready();
-}
-
-void motor2(void *pvParameters) {
-  (void)pvParameters;
-  stepper2.ready();
-}
-
-void motor3(void *pvParameters) {
-  (void)pvParameters;
-  stepper3.ready();
-}
-
-void motor4(void *pvParameters) {
-  (void)pvParameters;
-  stepper4.ready();
-}
+static MyStepper stepper1(1, MOTOR1_IN1, MOTOR1_IN2, MOTOR1_IN3, MOTOR1_IN4);
+static MyStepper stepper2(1, MOTOR2_IN1, MOTOR2_IN2, MOTOR2_IN3, MOTOR2_IN4);
+static MyStepper stepper3(1, MOTOR3_IN1, MOTOR3_IN2, MOTOR3_IN3, MOTOR3_IN4);
+static MyStepper stepper4(1, MOTOR4_IN1, MOTOR4_IN2, MOTOR4_IN3, MOTOR4_IN4);
 
 void setup(void) {
   pinMode(LED, OUTPUT);
@@ -244,7 +277,6 @@ void setup(void) {
   }
 
   server.on("/", HTTP_GET, handleRoot);
-  server.on("/test.svg", HTTP_GET, drawGraph);
   server.on("/status", HTTP_POST, handleStatus);
   server.on(
     "/handle/motor", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor);
@@ -253,45 +285,53 @@ void setup(void) {
   Serial.println("HTTP server started");
 
   stepper1.setCurrentPosition(0);
-  stepper1.setSpeedMotor(7);
-  xTaskCreatePinnedToCore(motor1, "motor1", 2048, NULL, 2, NULL, ARDUINO_RUNNING_CORE);
+  stepper1.setSpeedMotor(0);
+  // xTaskCreatePinnedToCore(motor1, "motor1", 2048, NULL, 20, &Task1, ARDUINO_RUNNING_CORE);
   stepper2.setCurrentPosition(0);
-  stepper2.setSpeedMotor(7);
-  xTaskCreatePinnedToCore(motor2, "motor2", 2048, NULL, 2, NULL, ARDUINO_RUNNING_CORE);
+  stepper2.setSpeedMotor(0);
+  // xTaskCreatePinnedToCore(motor2, "motor2", 2048, NULL, 20, &Task2, ARDUINO_RUNNING_CORE);
   stepper3.setCurrentPosition(0);
-  stepper3.setSpeedMotor(7);
-  xTaskCreatePinnedToCore(motor3, "motor3", 2048, NULL, 2, NULL, ARDUINO_RUNNING_CORE);
+  stepper3.setSpeedMotor(0);
+  // xTaskCreatePinnedToCore(motor3, "motor3", 2048, NULL, 20, &Task3, ARDUINO_RUNNING_CORE);
   stepper4.setCurrentPosition(0);
-  stepper4.setSpeedMotor(7);
-  xTaskCreatePinnedToCore(motor4, "motor4", 2048, NULL, 2, NULL, ARDUINO_RUNNING_CORE);
+  stepper4.setSpeedMotor(0);
+  // xTaskCreatePinnedToCore(motor4, "motor4", 2048, NULL, 20, &Task4, ARDUINO_RUNNING_CORE);
 }
 
 void loop(void) {
+  stepper1.run(1);
+  stepper2.run(2);
+  stepper3.run(3);
+  stepper4.run(4);
 }
 
 void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
   DynamicJsonDocument root = mapJsonObject(data);
+  request->send(200, "application/json", "ok");
   if (!root["positions"].isNull()) {
     JsonArray positionsRaw = root["positions"];
     for (JsonObject repo : positionsRaw) {
       switch (repo["index"].as<int>()) {
         case 0:
           stepper1.setMoveTo(repo["value"].as<long>());
+          // xTaskCreatePinnedToCore(motor1, "motor1", 2048, NULL, 20, &Task1, ARDUINO_RUNNING_CORE);
           break;
         case 1:
           stepper2.setMoveTo(repo["value"].as<long>());
+          // xTaskCreatePinnedToCore(motor2, "motor2", 2048, NULL, 20, &Task2, ARDUINO_RUNNING_CORE);
           break;
         case 2:
           stepper3.setMoveTo(repo["value"].as<long>());
+          // xTaskCreatePinnedToCore(motor3, "motor3", 2048, NULL, 20, &Task3, ARDUINO_RUNNING_CORE);
           break;
         case 3:
           stepper4.setMoveTo(repo["value"].as<long>());
+          // xTaskCreatePinnedToCore(motor4, "motor4", 2048, NULL, 20, &Task4, ARDUINO_RUNNING_CORE);
           break;
       }
       Serial.printf("Index : %d Value : %d\n", repo["index"].as<int>(), repo["value"].as<long>());
     }
   }
-  request->send(200, "application/json", "ok");
 }
 
 void handleRoot(AsyncWebServerRequest *request) {
@@ -314,7 +354,6 @@ void handleRoot(AsyncWebServerRequest *request) {
   <body>\
     <h1>Hello from ESP32!</h1>\
     <p>Uptime: %02d:%02d:%02d</p>\
-    <img src=\"/test.svg\" />\
   </body>\
 </html>",
 
@@ -340,24 +379,6 @@ void handleNotFound(AsyncWebServerRequest *request) {
 
   request->send(404, "text/plain", message);
   digitalWrite(LED, 0);
-}
-
-void drawGraph(AsyncWebServerRequest *request) {
-  String out = "";
-  char temp[100];
-  out += "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"400\" height=\"150\">\n";
-  out += "<rect width=\"400\" height=\"150\" fill=\"rgb(250, 230, 210)\" stroke-width=\"1\" stroke=\"rgb(0, 0, 0)\" />\n";
-  out += "<g stroke=\"black\">\n";
-  int y = rand() % 130;
-  for (int x = 10; x < 390; x += 10) {
-    int y2 = rand() % 130;
-    sprintf(temp, "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke-width=\"1\" />\n", x, 140 - y, x + 10, 140 - y2);
-    out += temp;
-    y = y2;
-  }
-  out += "</g>\n</svg>\n";
-
-  request->send(200, "image/svg+xml", out);
 }
 
 void handleStatus(AsyncWebServerRequest *request) {
