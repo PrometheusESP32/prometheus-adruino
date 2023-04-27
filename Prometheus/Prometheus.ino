@@ -56,7 +56,7 @@
 #define MOTOR4_IN3 17
 #define MOTOR4_IN4 5
 
-const char *ssid = "Naras";
+const char *ssid = "NS";
 const char *password = "-Naras-CPE290821-";
 
 AsyncWebServer server(80);
@@ -227,9 +227,10 @@ private:
   int in3;
   int in4;
   char *name;
-  long currentPositionRaw;
 
 public:
+  MyStepper() {}
+
   MyStepper(int m, int a, int b, int c, int d) {
     Serial.printf("Detail : MODE(%d) IN1(%d) IN2(%d) IN3(%d) IN4(%d)\n", mode, in1, in2, in3, in4);
     mode = m;
@@ -254,7 +255,11 @@ public:
     currentPosition = s;
   }
 
-  long getCurrentPosition() {
+  long *getCurrentPosition() {
+    return &currentPosition;
+  }
+
+  long getCurrentPositionRaw() {
     return currentPosition;
   }
 
@@ -286,30 +291,20 @@ public:
     return name;
   }
 
-  void run(int num) {
-    if (moveTo != currentPosition) {
-      Serial.printf("Detail : currentPosition(%d) moveTo(%d) IN1(%d) IN2(%d) IN3(%d) IN4(%d) NAME(%s)\n", currentPositionRaw, moveTo, in1, in2, in3, in4, name);
-      currentPosition = moveTo;
-      GenericData_t dataT = { moveTo, speedMotor, in1, in2, in3, in4, num, &currentPositionRaw, mode };
-      try {
-        switch (num) {
-          case 1:
-            xTaskCreatePinnedToCore(motor, getName(), 4096, (void *)&dataT, 2, &Task1, ARDUINO_RUNNING_CORE);
-            break;
-          case 2:
-            xTaskCreatePinnedToCore(motor, getName(), 4096, (void *)&dataT, 2, &Task2, ARDUINO_RUNNING_CORE);
-            break;
-          case 3:
-            xTaskCreatePinnedToCore(motor, getName(), 4096, (void *)&dataT, 2, &Task3, ARDUINO_RUNNING_CORE);
-            break;
-          case 4:
-            xTaskCreatePinnedToCore(motor, getName(), 4096, (void *)&dataT, 2, &Task4, ARDUINO_RUNNING_CORE);
-            break;
-        }
-      } catch (...) {
-        Serial.printf("Create task error.");
-      }
-    }
+  int getPort1() {
+    return in1;
+  }
+
+  int getPort2() {
+    return in2;
+  }
+
+  int getPort3() {
+    return in3;
+  }
+
+  int getPort4() {
+    return in4;
   }
 };
 
@@ -346,6 +341,13 @@ void setup(void) {
   server.on("/status", HTTP_POST, handleStatus);
   server.on(
     "/handle/motor", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleMotor);
+  server.on(
+    "/handle/cancle", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleCancleThreadRunning);
+  server.on(
+    "/handle/suspend", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleSuspends);
+  server.on(
+    "/handle/resume", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleResume);
+  server.on("/handle/inquiry", HTTP_GET, getMotorValue);
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("HTTP server started");
@@ -365,46 +367,301 @@ void setup(void) {
 }
 
 void loop(void) {
-  stepper1.run(1);
-  stepper2.run(2);
-  stepper3.run(3);
-  stepper4.run(4);
+  int num = Serial.read();
+  if (num == 0) {
+    Task1 = xTaskGetHandle("MotorI");
+    if (Task1 != NULL) {
+      vTaskDelete(Task1);
+    }
+    Task2 = xTaskGetHandle("MotorII");
+    if (Task2 != NULL) {
+      vTaskDelete(Task2);
+    }
+    Task3 = xTaskGetHandle("MotorIII");
+    if (Task3 != NULL) {
+      vTaskDelete(Task3);
+    }
+    Task4 = xTaskGetHandle("MotorIIII");
+    if (Task4 != NULL) {
+      vTaskDelete(Task4);
+    }
+  } else if (num == 1) {
+    Task1 = xTaskGetHandle("MotorI");
+    if (Task1 != NULL) {
+      vTaskDelete(Task1);
+    }
+  } else if (num == 2) {
+    Task2 = xTaskGetHandle("MotorII");
+    if (Task2 != NULL) {
+      vTaskDelete(Task2);
+    }
+  } else if (num == 3) {
+    Task3 = xTaskGetHandle("MotorIII");
+    if (Task3 != NULL) {
+      vTaskDelete(Task3);
+    }
+  } else if (num == 4) {
+    Task4 = xTaskGetHandle("MotorIIII");
+    if (Task4 != NULL) {
+      vTaskDelete(Task4);
+    }
+  }
 }
 
 void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
   DynamicJsonDocument root = mapJsonObject(data);
-  request->send(200, "application/json", "ok");
-  if (!root["positions"].isNull()) {
-    JsonArray positionsRaw = root["positions"];
-    for (JsonObject repo : positionsRaw) {
-      switch (repo["index"].as<int>()) {
-        case 0:
-          stepper1.setMoveTo(repo["value"].as<long>());
-          if (!repo["speed"].isNull()) {
-            stepper1.setSpeedMotor(repo["speed"].as<int>());
-          }
-          break;
-        case 1:
-          stepper2.setMoveTo(repo["value"].as<long>());
-          if (!repo["speed"].isNull()) {
-            stepper2.setSpeedMotor(repo["speed"].as<int>());
-          }
-          break;
-        case 2:
-          stepper3.setMoveTo(repo["value"].as<long>());
-          if (!repo["speed"].isNull()) {
-            stepper3.setSpeedMotor(repo["speed"].as<int>());
-          }
-          break;
-        case 3:
-          stepper4.setMoveTo(repo["value"].as<long>());
-          if (!repo["speed"].isNull()) {
-            stepper4.setSpeedMotor(repo["speed"].as<int>());
-          }
-          break;
+  Serial.printf("Running on thread : %d\n", xPortGetCoreID());
+  try {
+    if (!root["positions"].isNull()) {
+      JsonObject jo = root["positions"].as<JsonObject>();
+      if (jo["index"].as<int>() == 1) {
+        Task1 = xTaskGetHandle("MotorI");
+        if (Task1 != NULL) {
+          vTaskDelete(Task1);
+        }
+        stepper1.setMoveTo(jo["value"].as<long>());
+        if (!jo["speed"].isNull()) {
+          stepper1.setSpeedMotor(jo["speed"].as<int>());
+        }
+        GenericData_t dataT = { stepper1.getMoveTo(), stepper1.getSpeedMotor(), stepper1.getPort1(), stepper1.getPort2(), stepper1.getPort3(), stepper1.getPort4(), 1, stepper1.getCurrentPosition(), 1 };
+        xTaskCreatePinnedToCore(motor, stepper1.getName(), 4096, (void *)&dataT, 1, &Task1, 0);
+      } else if (jo["index"].as<int>() == 2) {
+        Task2 = xTaskGetHandle("MotorII");
+        if (Task2 != NULL) {
+          vTaskDelete(Task2);
+        }
+        stepper2.setMoveTo(jo["value"].as<long>());
+        if (!jo["speed"].isNull()) {
+          stepper2.setSpeedMotor(jo["speed"].as<int>());
+        }
+        GenericData_t dataT = { stepper2.getMoveTo(), stepper2.getSpeedMotor(), stepper2.getPort1(), stepper2.getPort2(), stepper2.getPort3(), stepper2.getPort4(), 2, stepper2.getCurrentPosition(), 1 };
+        xTaskCreatePinnedToCore(motor, stepper2.getName(), 4096, (void *)&dataT, 1, &Task2, 1);
+      } else if (jo["index"].as<int>() == 3) {
+        Task3 = xTaskGetHandle("MotorIII");
+        if (Task3 != NULL) {
+          vTaskDelete(Task3);
+        }
+        stepper3.setMoveTo(jo["value"].as<long>());
+        if (!jo["speed"].isNull()) {
+          stepper3.setSpeedMotor(jo["speed"].as<int>());
+        }
+        GenericData_t dataT = { stepper3.getMoveTo(), stepper3.getSpeedMotor(), stepper3.getPort1(), stepper3.getPort2(), stepper3.getPort3(), stepper3.getPort4(), 3, stepper3.getCurrentPosition(), 1 };
+        xTaskCreatePinnedToCore(motor, stepper3.getName(), 4096, (void *)&dataT, 1, &Task3, 0);
+      } else if (jo["index"].as<int>() == 4) {
+        Task4 = xTaskGetHandle("MotorIIII");
+        if (Task4 != NULL) {
+          vTaskDelete(Task4);
+        }
+        stepper4.setMoveTo(jo["value"].as<long>());
+        if (!jo["speed"].isNull()) {
+          stepper4.setSpeedMotor(jo["speed"].as<int>());
+        }
+        GenericData_t dataT = { stepper4.getMoveTo(), stepper4.getSpeedMotor(), stepper4.getPort1(), stepper4.getPort2(), stepper4.getPort3(), stepper4.getPort4(), 4, stepper4.getCurrentPosition(), 1 };
+        xTaskCreatePinnedToCore(motor, stepper4.getName(), 4096, (void *)&dataT, 1, &Task4, 1);
       }
-      Serial.printf("Index : %d Value : %d\n", repo["index"].as<int>(), repo["value"].as<long>());
+      Serial.printf("Index : %d Value : %d\n", jo["index"].as<int>(), jo["value"].as<long>());
     }
+    request->send(200, "application/json", "{\"status\":\"success\"}");
+  } catch (...) {
+    request->send(500, "application/json", "{\"status\":\"error\"}");
+  }
+}
+
+void handleCancleThreadRunning(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+  DynamicJsonDocument root = mapJsonObject(data);
+  try {
+    if (!root["motor"].isNull()) {
+      Serial.printf("Motor: %d\n", root["motor"].as<int>());
+      if (root["motor"].as<int>() == 0) {
+        Task1 = xTaskGetHandle("MotorI");
+        if (Task1 != NULL) {
+          vTaskDelete(Task1);
+        }
+        Task2 = xTaskGetHandle("MotorII");
+        if (Task2 != NULL) {
+          vTaskDelete(Task2);
+        }
+        Task3 = xTaskGetHandle("MotorIII");
+        if (Task3 != NULL) {
+          vTaskDelete(Task3);
+        }
+        Task4 = xTaskGetHandle("MotorIIII");
+        if (Task4 != NULL) {
+          vTaskDelete(Task4);
+        }
+      } else if (root["motor"].as<int>() == 1) {
+        Task1 = xTaskGetHandle("MotorI");
+        if (Task1 != NULL) {
+          vTaskDelete(Task1);
+        }
+      } else if (root["motor"].as<int>() == 2) {
+        Task2 = xTaskGetHandle("MotorII");
+        if (Task2 != NULL) {
+          vTaskDelete(Task2);
+        }
+      } else if (root["motor"].as<int>() == 3) {
+        Task3 = xTaskGetHandle("MotorIII");
+        if (Task3 != NULL) {
+          vTaskDelete(Task3);
+        }
+      } else if (root["motor"].as<int>() == 4) {
+        Task4 = xTaskGetHandle("MotorIIII");
+        if (Task4 != NULL) {
+          vTaskDelete(Task4);
+        }
+      } else {
+        Serial.println("Motor number is not found.");
+      }
+    }
+    request->send(200, "application/json", "{\"status\":\"success\"}");
+  } catch (...) {
+    request->send(500, "application/json", "{\"status\":\"error\"}");
+  }
+}
+
+void getMotorValue(AsyncWebServerRequest *request) {
+  int paramsNr = request->params();
+  const int capacity = JSON_ARRAY_SIZE(2) + 4 * JSON_OBJECT_SIZE(2);
+  StaticJsonDocument<capacity> doc;
+  JsonObject data = doc.createNestedObject("data");
+  MyStepper stepper;
+  try {
+    for (int i = 0; i < paramsNr; i++) {
+      AsyncWebParameter *p = request->getParam(i);
+      Serial.print("Param name: ");
+      Serial.println(p->name());
+      Serial.print("Param value: ");
+      Serial.println(p->value());
+      Serial.println("------");
+      if (p->name().equals("motor")) {
+        const long motorNumber = p->value().toInt();
+        if (motorNumber == 1) {
+          stepper = stepper1;
+        } else if (motorNumber == 2) {
+          stepper = stepper2;
+        } else if (motorNumber == 3) {
+          stepper = stepper3;
+        } else if (motorNumber == 4) {
+          stepper = stepper4;
+        }
+      }
+      data["currentPosition"] = stepper.getCurrentPositionRaw();
+      data["port1"] = stepper.getPort1();
+      data["port2"] = stepper.getPort2();
+      data["port3"] = stepper.getPort3();
+      data["port4"] = stepper.getPort4();
+      data["name"] = stepper.getName();
+      data["moveToPosition"] = stepper.getMoveTo();
+      AsyncResponseStream *response = request->beginResponseStream("application/json");
+      serializeJson(doc, *response);
+      request->send(response);
+    }
+  } catch (...) {
+    request->send(500, "application/json", "{\"status\":\"error\"}");
+  }
+}
+
+void handleSuspends(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+  DynamicJsonDocument root = mapJsonObject(data);
+  try {
+    if (!root["motor"].isNull()) {
+      Serial.printf("Motor: %d\n", root["motor"].as<int>());
+      if (root["motor"].as<int>() == 0) {
+        Task1 = xTaskGetHandle("MotorI");
+        if (Task1 != NULL) {
+          vTaskSuspend(Task1);
+        }
+        Task2 = xTaskGetHandle("MotorII");
+        if (Task2 != NULL) {
+          vTaskSuspend(Task2);
+        }
+        Task3 = xTaskGetHandle("MotorIII");
+        if (Task3 != NULL) {
+          vTaskSuspend(Task3);
+        }
+        Task4 = xTaskGetHandle("MotorIIII");
+        if (Task4 != NULL) {
+          vTaskSuspend(Task4);
+        }
+      } else if (root["motor"].as<int>() == 1) {
+        Task1 = xTaskGetHandle("MotorI");
+        if (Task1 != NULL) {
+          vTaskSuspend(Task1);
+        }
+      } else if (root["motor"].as<int>() == 2) {
+        Task2 = xTaskGetHandle("MotorII");
+        if (Task2 != NULL) {
+          vTaskSuspend(Task2);
+        }
+      } else if (root["motor"].as<int>() == 3) {
+        Task3 = xTaskGetHandle("MotorIII");
+        if (Task3 != NULL) {
+          vTaskSuspend(Task3);
+        }
+      } else if (root["motor"].as<int>() == 4) {
+        Task4 = xTaskGetHandle("MotorIIII");
+        if (Task4 != NULL) {
+          vTaskSuspend(Task4);
+        }
+      } else {
+        Serial.println("Motor number is not found.");
+      }
+    }
+    request->send(200, "application/json", "{\"status\":\"success\"}");
+  } catch (...) {
+    request->send(500, "application/json", "{\"status\":\"error\"}");
+  }
+}
+
+void handleResume(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+  DynamicJsonDocument root = mapJsonObject(data);
+  try {
+    if (!root["motor"].isNull()) {
+      Serial.printf("Motor: %d\n", root["motor"].as<int>());
+      if (root["motor"].as<int>() == 0) {
+        Task1 = xTaskGetHandle("MotorI");
+        if (Task1 != NULL) {
+          vTaskResume(Task1);
+        }
+        Task2 = xTaskGetHandle("MotorII");
+        if (Task2 != NULL) {
+          vTaskResume(Task2);
+        }
+        Task3 = xTaskGetHandle("MotorIII");
+        if (Task3 != NULL) {
+          vTaskResume(Task3);
+        }
+        Task4 = xTaskGetHandle("MotorIIII");
+        if (Task4 != NULL) {
+          vTaskResume(Task4);
+        }
+      } else if (root["motor"].as<int>() == 1) {
+        Task1 = xTaskGetHandle("MotorI");
+        if (Task1 != NULL) {
+          vTaskResume(Task1);
+        }
+      } else if (root["motor"].as<int>() == 2) {
+        Task2 = xTaskGetHandle("MotorII");
+        if (Task2 != NULL) {
+          vTaskResume(Task2);
+        }
+      } else if (root["motor"].as<int>() == 3) {
+        Task3 = xTaskGetHandle("MotorIII");
+        if (Task3 != NULL) {
+          vTaskResume(Task3);
+        }
+      } else if (root["motor"].as<int>() == 4) {
+        Task4 = xTaskGetHandle("MotorIIII");
+        if (Task4 != NULL) {
+          vTaskResume(Task4);
+        }
+      } else {
+        Serial.println("Motor number is not found.");
+      }
+    }
+    request->send(200, "application/json", "{\"status\":\"success\"}");
+  } catch (...) {
+    request->send(500, "application/json", "{\"status\":\"error\"}");
   }
 }
 
