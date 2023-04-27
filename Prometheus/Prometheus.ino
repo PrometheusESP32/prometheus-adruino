@@ -198,7 +198,10 @@ void motor(void *pvParameters) {
       break;
     }
   }
-
+  digitalWrite(in1, 0);
+  digitalWrite(in2, 0);
+  digitalWrite(in3, 0);
+  digitalWrite(in4, 0);
   switch (motorNumber) {
     case 1:
       vTaskDelete(Task1);
@@ -406,6 +409,7 @@ void loop(void) {
       vTaskDelete(Task4);
     }
   }
+  delay(1000);
 }
 
 void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
