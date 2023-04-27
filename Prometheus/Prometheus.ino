@@ -343,10 +343,10 @@ public:
   }
 };
 
-static MyStepper stepper1(2, MOTOR1_IN1, MOTOR1_IN2, MOTOR1_IN3, MOTOR1_IN4);
-static MyStepper stepper2(2, MOTOR2_IN1, MOTOR2_IN2, MOTOR2_IN3, MOTOR2_IN4);
-static MyStepper stepper3(2, MOTOR3_IN1, MOTOR3_IN2, MOTOR3_IN3, MOTOR3_IN4);
-static MyStepper stepper4(2, MOTOR4_IN1, MOTOR4_IN2, MOTOR4_IN3, MOTOR4_IN4);
+static MyStepper stepper1(1, MOTOR1_IN1, MOTOR1_IN2, MOTOR1_IN3, MOTOR1_IN4);
+static MyStepper stepper2(1, MOTOR2_IN1, MOTOR2_IN2, MOTOR2_IN3, MOTOR2_IN4);
+static MyStepper stepper3(1, MOTOR3_IN1, MOTOR3_IN2, MOTOR3_IN3, MOTOR3_IN4);
+static MyStepper stepper4(1, MOTOR4_IN1, MOTOR4_IN2, MOTOR4_IN3, MOTOR4_IN4);
 
 void setup(void) {
   pinMode(LED, OUTPUT);
@@ -463,7 +463,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
         if (!jo["speed"].isNull()) {
           stepper1.setSpeedMotor(jo["speed"].as<int>());
         }
-        GenericData_t dataT = { stepper1.getMoveTo(), stepper1.getSpeedMotor(), stepper1.getPort1(), stepper1.getPort2(), stepper1.getPort3(), stepper1.getPort4(), 1, stepper1.getCurrentPosition(), 1 };
+        GenericData_t dataT = { stepper1.getMoveTo(), stepper1.getSpeedMotor(), stepper1.getPort1(), stepper1.getPort2(), stepper1.getPort3(), stepper1.getPort4(), 1, stepper1.getCurrentPosition(), stepper1.getMode() };
         xTaskCreatePinnedToCore(motor, stepper1.getName(), 4096, (void *)&dataT, 1, &Task1, 0);
       } else if (jo["index"].as<int>() == 2) {
         Task2 = xTaskGetHandle("MotorII");
@@ -474,7 +474,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
         if (!jo["speed"].isNull()) {
           stepper2.setSpeedMotor(jo["speed"].as<int>());
         }
-        GenericData_t dataT = { stepper2.getMoveTo(), stepper2.getSpeedMotor(), stepper2.getPort1(), stepper2.getPort2(), stepper2.getPort3(), stepper2.getPort4(), 2, stepper2.getCurrentPosition(), 1 };
+        GenericData_t dataT = { stepper2.getMoveTo(), stepper2.getSpeedMotor(), stepper2.getPort1(), stepper2.getPort2(), stepper2.getPort3(), stepper2.getPort4(), 2, stepper2.getCurrentPosition(), stepper2.getMode() };
         xTaskCreatePinnedToCore(motor, stepper2.getName(), 4096, (void *)&dataT, 1, &Task2, 1);
       } else if (jo["index"].as<int>() == 3) {
         Task3 = xTaskGetHandle("MotorIII");
@@ -485,7 +485,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
         if (!jo["speed"].isNull()) {
           stepper3.setSpeedMotor(jo["speed"].as<int>());
         }
-        GenericData_t dataT = { stepper3.getMoveTo(), stepper3.getSpeedMotor(), stepper3.getPort1(), stepper3.getPort2(), stepper3.getPort3(), stepper3.getPort4(), 3, stepper3.getCurrentPosition(), 1 };
+        GenericData_t dataT = { stepper3.getMoveTo(), stepper3.getSpeedMotor(), stepper3.getPort1(), stepper3.getPort2(), stepper3.getPort3(), stepper3.getPort4(), 3, stepper3.getCurrentPosition(), stepper3.getMode() };
         xTaskCreatePinnedToCore(motor, stepper3.getName(), 4096, (void *)&dataT, 1, &Task3, 0);
       } else if (jo["index"].as<int>() == 4) {
         Task4 = xTaskGetHandle("MotorIIII");
@@ -496,7 +496,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
         if (!jo["speed"].isNull()) {
           stepper4.setSpeedMotor(jo["speed"].as<int>());
         }
-        GenericData_t dataT = { stepper4.getMoveTo(), stepper4.getSpeedMotor(), stepper4.getPort1(), stepper4.getPort2(), stepper4.getPort3(), stepper4.getPort4(), 4, stepper4.getCurrentPosition(), 1 };
+        GenericData_t dataT = { stepper4.getMoveTo(), stepper4.getSpeedMotor(), stepper4.getPort1(), stepper4.getPort2(), stepper4.getPort3(), stepper4.getPort4(), 4, stepper4.getCurrentPosition(), stepper4.getMode() };
         xTaskCreatePinnedToCore(motor, stepper4.getName(), 4096, (void *)&dataT, 1, &Task4, 1);
       }
       Serial.printf("Index : %d Value : %d\n", jo["index"].as<int>(), jo["value"].as<long>());
