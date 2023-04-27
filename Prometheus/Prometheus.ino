@@ -246,6 +246,14 @@ public:
     pinMode(in3, OUTPUT);
     pinMode(in4, OUTPUT);
   }
+
+  void setupPort() {
+    pinMode(in1, OUTPUT);
+    pinMode(in2, OUTPUT);
+    pinMode(in3, OUTPUT);
+    pinMode(in4, OUTPUT);
+  }
+
   void setStep(long s) {
     step = s;
   }
@@ -294,27 +302,51 @@ public:
     return name;
   }
 
+  void setPort1(int s) {
+    in1 = s;
+  }
+
   int getPort1() {
     return in1;
+  }
+
+  void setPort2(int s) {
+    in2 = s;
   }
 
   int getPort2() {
     return in2;
   }
 
+  void setPort3(int s) {
+    in3 = s;
+  }
+
   int getPort3() {
     return in3;
+  }
+
+  void setPort4(int s) {
+    in4 = s;
   }
 
   int getPort4() {
     return in4;
   }
+
+  void setMode(int s) {
+    mode = s;
+  }
+
+  int getMode() {
+    return mode;
+  }
 };
 
-static MyStepper stepper1(1, MOTOR1_IN1, MOTOR1_IN2, MOTOR1_IN3, MOTOR1_IN4);
-static MyStepper stepper2(1, MOTOR2_IN1, MOTOR2_IN2, MOTOR2_IN3, MOTOR2_IN4);
-static MyStepper stepper3(1, MOTOR3_IN1, MOTOR3_IN2, MOTOR3_IN3, MOTOR3_IN4);
-static MyStepper stepper4(1, MOTOR4_IN1, MOTOR4_IN2, MOTOR4_IN3, MOTOR4_IN4);
+static MyStepper stepper1(2, MOTOR1_IN1, MOTOR1_IN2, MOTOR1_IN3, MOTOR1_IN4);
+static MyStepper stepper2(2, MOTOR2_IN1, MOTOR2_IN2, MOTOR2_IN3, MOTOR2_IN4);
+static MyStepper stepper3(2, MOTOR3_IN1, MOTOR3_IN2, MOTOR3_IN3, MOTOR3_IN4);
+static MyStepper stepper4(2, MOTOR4_IN1, MOTOR4_IN2, MOTOR4_IN3, MOTOR4_IN4);
 
 void setup(void) {
   pinMode(LED, OUTPUT);
@@ -350,6 +382,10 @@ void setup(void) {
     "/handle/suspend", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleSuspends);
   server.on(
     "/handle/resume", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleResume);
+  server.on(
+    "/handle/change-mode", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleChangeMode);
+  server.on(
+    "/handle/change-port", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleChangePort);
   server.on("/handle/inquiry", HTTP_GET, getMotorValue);
   server.onNotFound(handleNotFound);
   server.begin();
@@ -556,6 +592,7 @@ void getMotorValue(AsyncWebServerRequest *request) {
       data["port4"] = stepper.getPort4();
       data["name"] = stepper.getName();
       data["moveToPosition"] = stepper.getMoveTo();
+      data["mode"] = stepper.getMode();
       AsyncResponseStream *response = request->beginResponseStream("application/json");
       serializeJson(doc, *response);
       request->send(response);
@@ -659,6 +696,108 @@ void handleResume(AsyncWebServerRequest *request, uint8_t *data, size_t len, siz
         if (Task4 != NULL) {
           vTaskResume(Task4);
         }
+      } else {
+        Serial.println("Motor number is not found.");
+      }
+    }
+    request->send(200, "application/json", "{\"status\":\"success\"}");
+  } catch (...) {
+    request->send(500, "application/json", "{\"status\":\"error\"}");
+  }
+}
+
+void handleChangeMode(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+  DynamicJsonDocument root = mapJsonObject(data);
+  try {
+    if (!root["motor"].isNull()) {
+      Serial.printf("Motor: %d\n", root["motor"].as<int>());
+      if (root["motor"].as<int>() == 1) {
+        if (!root["mode"].isNull()) {
+          stepper1.setMode(root["mode"].as<int>());
+        }
+      } else if (root["motor"].as<int>() == 2) {
+        if (!root["mode"].isNull()) {
+          stepper2.setMode(root["mode"].as<int>());
+        }
+      } else if (root["motor"].as<int>() == 3) {
+        if (!root["mode"].isNull()) {
+          stepper3.setMode(root["mode"].as<int>());
+        }
+      } else if (root["motor"].as<int>() == 4) {
+        if (!root["mode"].isNull()) {
+          stepper4.setMode(root["mode"].as<int>());
+        }
+      } else {
+        Serial.println("Motor number is not found.");
+      }
+    }
+    request->send(200, "application/json", "{\"status\":\"success\"}");
+  } catch (...) {
+    request->send(500, "application/json", "{\"status\":\"error\"}");
+  }
+}
+
+void handleChangePort(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+  DynamicJsonDocument root = mapJsonObject(data);
+  try {
+    if (!root["motor"].isNull()) {
+      Serial.printf("Motor: %d\n", root["motor"].as<int>());
+      if (root["motor"].as<int>() == 1) {
+        if (!root["port1"].isNull()) {
+          stepper1.setPort1(root["port1"].as<int>());
+        }
+        if (!root["port2"].isNull()) {
+          stepper1.setPort2(root["port2"].as<int>());
+        }
+        if (!root["port3"].isNull()) {
+          stepper1.setPort3(root["port3"].as<int>());
+        }
+        if (!root["port4"].isNull()) {
+          stepper1.setPort4(root["port4"].as<int>());
+        }
+        stepper1.setupPort();
+      } else if (root["motor"].as<int>() == 2) {
+        if (!root["port1"].isNull()) {
+          stepper2.setPort1(root["port1"].as<int>());
+        }
+        if (!root["port2"].isNull()) {
+          stepper2.setPort2(root["port2"].as<int>());
+        }
+        if (!root["port3"].isNull()) {
+          stepper2.setPort3(root["port3"].as<int>());
+        }
+        if (!root["port4"].isNull()) {
+          stepper2.setPort4(root["port4"].as<int>());
+        }
+        stepper2.setupPort();
+      } else if (root["motor"].as<int>() == 3) {
+        if (!root["port1"].isNull()) {
+          stepper3.setPort1(root["port1"].as<int>());
+        }
+        if (!root["port2"].isNull()) {
+          stepper3.setPort2(root["port2"].as<int>());
+        }
+        if (!root["port3"].isNull()) {
+          stepper3.setPort3(root["port3"].as<int>());
+        }
+        if (!root["port4"].isNull()) {
+          stepper3.setPort4(root["port4"].as<int>());
+        }
+        stepper3.setupPort();
+      } else if (root["motor"].as<int>() == 4) {
+        if (!root["port1"].isNull()) {
+          stepper4.setPort1(root["port1"].as<int>());
+        }
+        if (!root["port2"].isNull()) {
+          stepper4.setPort2(root["port2"].as<int>());
+        }
+        if (!root["port3"].isNull()) {
+          stepper4.setPort3(root["port3"].as<int>());
+        }
+        if (!root["port4"].isNull()) {
+          stepper4.setPort4(root["port4"].as<int>());
+        }
+        stepper4.setupPort();
       } else {
         Serial.println("Motor number is not found.");
       }
