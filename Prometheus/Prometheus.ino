@@ -56,9 +56,6 @@
 #define MOTOR4_IN3 17
 #define MOTOR4_IN4 5
 
-const char *ssid = "NS";
-const char *password = "-Naras-CPE290821-";
-
 AsyncWebServer server(80);
 
 const int LED = 2;
@@ -348,11 +345,44 @@ static MyStepper stepper2(1, MOTOR2_IN1, MOTOR2_IN2, MOTOR2_IN3, MOTOR2_IN4);
 static MyStepper stepper3(1, MOTOR3_IN1, MOTOR3_IN2, MOTOR3_IN3, MOTOR3_IN4);
 static MyStepper stepper4(1, MOTOR4_IN1, MOTOR4_IN2, MOTOR4_IN3, MOTOR4_IN4);
 
+class WifiSetup {
+private:
+  char *ssid;
+  char *password;
+public:
+  WifiSetup() {}
+
+  void setSsid(char *s) {
+    this->ssid = s;
+  }
+
+  char *getSsid() {
+    return this->ssid;
+  }
+
+  void setPassword(char *s) {
+    this->password = s;
+  }
+
+  char *getPassword() {
+    return this->password;
+  }
+};
+
+static WifiSetup wifiSetup;
+
 void setup(void) {
   pinMode(LED, OUTPUT);
   digitalWrite(LED, 0);
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
+  Serial.println("This a arduino working with network by wireless network.Also please input your SSID and PASSWORD.");
+  do {
+    Serial.print("SSID : ");
+    const char ssid = Serial.read();
+    wifiSetup.setSsid(ssid);
+  } while (wifiSetup.getSsid());
+
   WiFi.begin(ssid, password);
   Serial.println("");
 
