@@ -251,6 +251,13 @@ public:
     pinMode(in4, OUTPUT);
   }
 
+  void clearPort() {
+    digitalWrite(in1, 0);
+    digitalWrite(in2, 0);
+    digitalWrite(in3, 0);
+    digitalWrite(in4, 0);
+  }
+
   void setStep(long s) {
     step = s;
   }
@@ -376,14 +383,9 @@ void setup(void) {
   digitalWrite(LED, 0);
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
-  Serial.println("This a arduino working with network by wireless network.Also please input your SSID and PASSWORD.");
-  do {
-    Serial.print("SSID : ");
-    const char ssid = Serial.read();
-    wifiSetup.setSsid(ssid);
-  } while (wifiSetup.getSsid());
-
-  WiFi.begin(ssid, password);
+  wifiSetup.setSsid("NS");
+  wifiSetup.setPassword("-Naras-CPE290821-");
+  WiFi.begin(wifiSetup.getSsid(), wifiSetup.getPassword());
   Serial.println("");
 
   // Wait for connection
@@ -394,7 +396,7 @@ void setup(void) {
 
   Serial.println("");
   Serial.print("Connected to ");
-  Serial.println(ssid);
+  Serial.println(wifiSetup.getSsid());
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
@@ -546,38 +548,46 @@ void handleCancleThreadRunning(AsyncWebServerRequest *request, uint8_t *data, si
         Task1 = xTaskGetHandle("MotorI");
         if (Task1 != NULL) {
           vTaskDelete(Task1);
+          stepper1.clearPort();
         }
         Task2 = xTaskGetHandle("MotorII");
         if (Task2 != NULL) {
           vTaskDelete(Task2);
+          stepper2.clearPort();
         }
         Task3 = xTaskGetHandle("MotorIII");
         if (Task3 != NULL) {
           vTaskDelete(Task3);
+          stepper3.clearPort();
         }
         Task4 = xTaskGetHandle("MotorIIII");
         if (Task4 != NULL) {
           vTaskDelete(Task4);
+          stepper4.clearPort();
         }
       } else if (root["motor"].as<int>() == 1) {
         Task1 = xTaskGetHandle("MotorI");
         if (Task1 != NULL) {
           vTaskDelete(Task1);
+          stepper1.clearPort();
         }
       } else if (root["motor"].as<int>() == 2) {
         Task2 = xTaskGetHandle("MotorII");
         if (Task2 != NULL) {
           vTaskDelete(Task2);
+          stepper2.clearPort();
         }
       } else if (root["motor"].as<int>() == 3) {
         Task3 = xTaskGetHandle("MotorIII");
         if (Task3 != NULL) {
           vTaskDelete(Task3);
+          stepper3.clearPort();
         }
       } else if (root["motor"].as<int>() == 4) {
         Task4 = xTaskGetHandle("MotorIIII");
         if (Task4 != NULL) {
           vTaskDelete(Task4);
+          stepper4.clearPort();
         }
       } else {
         Serial.println("Motor number is not found.");
