@@ -215,6 +215,19 @@ void motor(void *pvParameters) {
   }
 }
 
+void clearMotor(void *pvParameters) {
+  GenericData_t *data = (GenericData_t *)pvParameters;
+  const int in1 = data->port1;
+  const int in2 = data->port2;
+  const int in3 = data->port3;
+  const int in4 = data->port4;
+  digitalWrite(in1, 0);
+  digitalWrite(in2, 0);
+  digitalWrite(in3, 0);
+  digitalWrite(in4, 0);
+  vTaskDelete(NULL);
+}
+
 class MyStepper {
 private:
   long step;
@@ -356,6 +369,7 @@ class WifiSetup {
 private:
   char *ssid;
   char *password;
+  char *hostname;
 public:
   WifiSetup() {}
 
@@ -374,6 +388,14 @@ public:
   char *getPassword() {
     return this->password;
   }
+
+  void setHostname(char *s) {
+    this->hostname = s;
+  }
+
+  char *getHostname() {
+    this->hostname;
+  }
 };
 
 static WifiSetup wifiSetup;
@@ -382,15 +404,16 @@ void setup(void) {
   pinMode(LED, OUTPUT);
   digitalWrite(LED, 0);
   Serial.begin(115200);
-  WiFi.mode(WIFI_STA);
   wifiSetup.setSsid("NS");
   wifiSetup.setPassword("-Naras-CPE290821-");
+  WiFi.mode(WIFI_STA);
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
   WiFi.begin(wifiSetup.getSsid(), wifiSetup.getPassword());
   Serial.println("");
 
   // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    delay(1000);
     Serial.print(".");
   }
 
@@ -438,6 +461,22 @@ void setup(void) {
 }
 
 void loop(void) {
+  Task1 = xTaskGetHandle("MotorI");
+  Task2 = xTaskGetHandle("MotorII");
+  Task3 = xTaskGetHandle("MotorIII");
+  Task4 = xTaskGetHandle("MotorIIII");
+  if (Task1 == NULL) {
+    stepper1.clearPort();
+  }
+  if (Task2 == NULL) {
+    stepper2.clearPort();
+  }
+  if (Task3 == NULL) {
+    stepper3.clearPort();
+  }
+  if (Task4 == NULL) {
+    stepper4.clearPort();
+  }
   int num = Serial.read();
   if (num == 0) {
     Task1 = xTaskGetHandle("MotorI");
@@ -548,46 +587,41 @@ void handleCancleThreadRunning(AsyncWebServerRequest *request, uint8_t *data, si
         Task1 = xTaskGetHandle("MotorI");
         if (Task1 != NULL) {
           vTaskDelete(Task1);
-          stepper1.clearPort();
         }
         Task2 = xTaskGetHandle("MotorII");
         if (Task2 != NULL) {
+          delay(1000);
           vTaskDelete(Task2);
-          stepper2.clearPort();
         }
         Task3 = xTaskGetHandle("MotorIII");
         if (Task3 != NULL) {
+          delay(1000);
           vTaskDelete(Task3);
-          stepper3.clearPort();
         }
         Task4 = xTaskGetHandle("MotorIIII");
         if (Task4 != NULL) {
+          delay(1000);
           vTaskDelete(Task4);
-          stepper4.clearPort();
         }
       } else if (root["motor"].as<int>() == 1) {
         Task1 = xTaskGetHandle("MotorI");
         if (Task1 != NULL) {
           vTaskDelete(Task1);
-          stepper1.clearPort();
         }
       } else if (root["motor"].as<int>() == 2) {
         Task2 = xTaskGetHandle("MotorII");
         if (Task2 != NULL) {
           vTaskDelete(Task2);
-          stepper2.clearPort();
         }
       } else if (root["motor"].as<int>() == 3) {
         Task3 = xTaskGetHandle("MotorIII");
         if (Task3 != NULL) {
           vTaskDelete(Task3);
-          stepper3.clearPort();
         }
       } else if (root["motor"].as<int>() == 4) {
         Task4 = xTaskGetHandle("MotorIIII");
         if (Task4 != NULL) {
           vTaskDelete(Task4);
-          stepper4.clearPort();
         }
       } else {
         Serial.println("Motor number is not found.");
