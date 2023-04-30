@@ -404,7 +404,7 @@ void setup(void) {
   pinMode(LED, OUTPUT);
   digitalWrite(LED, 0);
   Serial.begin(115200);
-  wifiSetup.setSsid("NS");
+  wifiSetup.setSsid("Naras");
   wifiSetup.setPassword("-Naras-CPE290821-");
   WiFi.mode(WIFI_STA);
   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
