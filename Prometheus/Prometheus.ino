@@ -477,52 +477,56 @@ String mapJsonHandleMotorPosition() {
   DynamicJsonDocument doc(2048);
   JsonArray array = doc.to<JsonArray>();
   JsonObject data1 = doc.createNestedObject();
-  data1["currentPosition"] = stepper1.getCurrentPositionRaw();
-  data1["port1"] = stepper1.getPort1();
-  data1["port2"] = stepper1.getPort2();
-  data1["port3"] = stepper1.getPort3();
-  data1["port4"] = stepper1.getPort4();
+  data1["current"] = stepper1.getCurrentPositionRaw();
+  std::string data1S1 = std::to_string(stepper1.getPort1());
+  std::string data1S2 = std::to_string(stepper1.getPort2());
+  std::string data1S3 = std::to_string(stepper1.getPort3());
+  std::string data1S4 = std::to_string(stepper1.getPort4());
+  data1["port"] = data1S1 + "," + data1S2 + "," + data1S3 + "," + data1S4;
   data1["name"] = stepper1.getName();
-  data1["moveToPosition"] = stepper1.getMoveTo();
+  data1["to_position"] = stepper1.getMoveTo();
   data1["mode"] = stepper1.getMode();
-  data1["index"] = 1;
-  data1["ip"] = WiFi.localIP();
+  data1["motor_id"] = 1;
+  data1["ip_address"] = WiFi.localIP();
 
   JsonObject data2 = doc.createNestedObject();
-  data2["currentPosition"] = stepper2.getCurrentPositionRaw();
-  data2["port1"] = stepper2.getPort1();
-  data2["port2"] = stepper2.getPort2();
-  data2["port3"] = stepper2.getPort3();
-  data2["port4"] = stepper2.getPort4();
+  data2["current"] = stepper2.getCurrentPositionRaw();
+  std::string data2S1 = std::to_string(stepper1.getPort1());
+  std::string data2S2 = std::to_string(stepper1.getPort2());
+  std::string data2S3 = std::to_string(stepper1.getPort3());
+  std::string data2S4 = std::to_string(stepper1.getPort4());
+  data2["port"] = data2S1 + "," + data2S2 + "," + data2S3 + "," + data2S4;
   data2["name"] = stepper2.getName();
-  data2["moveToPosition"] = stepper2.getMoveTo();
+  data2["to_position"] = stepper2.getMoveTo();
   data2["mode"] = stepper2.getMode();
-  data2["index"] = 2;
-  data2["ip"] = WiFi.localIP();
+  data2["motor_id"] = 2;
+  data2["ip_address"] = WiFi.localIP();
 
   JsonObject data3 = doc.createNestedObject();
-  data3["currentPosition"] = stepper3.getCurrentPositionRaw();
-  data3["port1"] = stepper3.getPort1();
-  data3["port2"] = stepper3.getPort2();
-  data3["port3"] = stepper3.getPort3();
-  data3["port4"] = stepper3.getPort4();
+  data3["current"] = stepper3.getCurrentPositionRaw();
+  std::string data3S1 = std::to_string(stepper1.getPort1());
+  std::string data3S2 = std::to_string(stepper1.getPort2());
+  std::string data3S3 = std::to_string(stepper1.getPort3());
+  std::string data3S4 = std::to_string(stepper1.getPort4());
+  data3["port"] = data3S1 + "," + data3S2 + "," + data3S3 + "," + data3S4;
   data3["name"] = stepper3.getName();
-  data3["moveToPosition"] = stepper3.getMoveTo();
+  data3["to_position"] = stepper3.getMoveTo();
   data3["mode"] = stepper3.getMode();
-  data3["index"] = 3;
-  data3["ip"] = WiFi.localIP();
+  data3["motor_id"] = 3;
+  data3["ip_address"] = WiFi.localIP();
 
   JsonObject data4 = doc.createNestedObject();
-  data4["currentPosition"] = stepper4.getCurrentPositionRaw();
-  data4["port1"] = stepper4.getPort1();
-  data4["port2"] = stepper4.getPort2();
-  data4["port3"] = stepper4.getPort3();
-  data4["port4"] = stepper4.getPort4();
+  data4["current"] = stepper4.getCurrentPositionRaw();
+  std::string data4S1 = std::to_string(stepper1.getPort1());
+  std::string data4S2 = std::to_string(stepper1.getPort2());
+  std::string data4S3 = std::to_string(stepper1.getPort3());
+  std::string data4S4 = std::to_string(stepper1.getPort4());
+  data4["port"] = data4S1 + "," + data4S2 + "," + data4S3 + "," + data4S4;
   data4["name"] = stepper4.getName();
-  data4["moveToPosition"] = stepper4.getMoveTo();
+  data4["to_position"] = stepper4.getMoveTo();
   data4["mode"] = stepper4.getMode();
-  data4["index"] = 4;
-  data4["ip"] = WiFi.localIP();
+  data4["motor_id"] = 4;
+  data4["ip_address"] = WiFi.localIP();
   array.add(data1);
   array.add(data2);
   array.add(data3);
@@ -559,7 +563,7 @@ public:
   }
 };
 
-static EnpointHandleMotorPosition enpointHandleMotorPosition("http://192.168.213.2", "/v1/esp32/process/motor-position");
+static EnpointHandleMotorPosition enpointHandleMotorPosition("http://192.168.1.162:8080", "/api/v1/information");
 
 void loop(void) {
   if (WiFi.status() == WL_CONNECTED) {
