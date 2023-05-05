@@ -35,6 +35,7 @@
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <string>
+#include <HTTPClient.h>
 
 #define MOTOR1_IN1 23
 #define MOTOR1_IN2 22
@@ -240,6 +241,7 @@ private:
   int in3;
   int in4;
   char *name;
+  int index;
 
 public:
   MyStepper() {}
@@ -358,6 +360,14 @@ public:
   int getMode() {
     return mode;
   }
+
+  void setIndex(int s) {
+    this->index = s;
+  }
+
+  int getIndex() {
+    return this->index;
+  }
 };
 
 static MyStepper stepper1(1, MOTOR1_IN1, MOTOR1_IN2, MOTOR1_IN3, MOTOR1_IN4);
@@ -441,6 +451,8 @@ void setup(void) {
     "/handle/change-mode", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleChangeMode);
   server.on(
     "/handle/change-port", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, handleChangePort);
+  server.on(
+    "/handle/change-enpoint/position", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, changeHostPathEnpointHandlePosition);
   server.on("/handle/inquiry", HTTP_GET, getMotorValue);
   server.onNotFound(handleNotFound);
   server.begin();
@@ -460,7 +472,113 @@ void setup(void) {
   stepper4.setName("MotorIIII");
 }
 
+String mapJsonHandleMotorPosition() {
+  // const int capacity = JSON_ARRAY_SIZE(10) + 3 * JSON_OBJECT_SIZE(10);
+  DynamicJsonDocument doc(2048);
+  JsonArray array = doc.to<JsonArray>();
+  JsonObject data1 = doc.createNestedObject();
+  data1["currentPosition"] = stepper1.getCurrentPositionRaw();
+  data1["port1"] = stepper1.getPort1();
+  data1["port2"] = stepper1.getPort2();
+  data1["port3"] = stepper1.getPort3();
+  data1["port4"] = stepper1.getPort4();
+  data1["name"] = stepper1.getName();
+  data1["moveToPosition"] = stepper1.getMoveTo();
+  data1["mode"] = stepper1.getMode();
+  data1["index"] = 1;
+  data1["ip"] = WiFi.localIP();
+
+  JsonObject data2 = doc.createNestedObject();
+  data2["currentPosition"] = stepper2.getCurrentPositionRaw();
+  data2["port1"] = stepper2.getPort1();
+  data2["port2"] = stepper2.getPort2();
+  data2["port3"] = stepper2.getPort3();
+  data2["port4"] = stepper2.getPort4();
+  data2["name"] = stepper2.getName();
+  data2["moveToPosition"] = stepper2.getMoveTo();
+  data2["mode"] = stepper2.getMode();
+  data2["index"] = 2;
+  data2["ip"] = WiFi.localIP();
+
+  JsonObject data3 = doc.createNestedObject();
+  data3["currentPosition"] = stepper3.getCurrentPositionRaw();
+  data3["port1"] = stepper3.getPort1();
+  data3["port2"] = stepper3.getPort2();
+  data3["port3"] = stepper3.getPort3();
+  data3["port4"] = stepper3.getPort4();
+  data3["name"] = stepper3.getName();
+  data3["moveToPosition"] = stepper3.getMoveTo();
+  data3["mode"] = stepper3.getMode();
+  data3["index"] = 3;
+  data3["ip"] = WiFi.localIP();
+
+  JsonObject data4 = doc.createNestedObject();
+  data4["currentPosition"] = stepper4.getCurrentPositionRaw();
+  data4["port1"] = stepper4.getPort1();
+  data4["port2"] = stepper4.getPort2();
+  data4["port3"] = stepper4.getPort3();
+  data4["port4"] = stepper4.getPort4();
+  data4["name"] = stepper4.getName();
+  data4["moveToPosition"] = stepper4.getMoveTo();
+  data4["mode"] = stepper4.getMode();
+  data4["index"] = 4;
+  data4["ip"] = WiFi.localIP();
+  array.add(data1);
+  array.add(data2);
+  array.add(data3);
+  array.add(data4);
+  String body;
+  serializeJson(doc, body);
+  return body;
+}
+
+class EnpointHandleMotorPosition {
+private:
+  char *host;
+  char *path;
+public:
+  EnpointHandleMotorPosition(char *host, char *path) {
+    this->host = host;
+    this->path = path;
+  }
+
+  void setHost(char *s) {
+    this->host = s;
+  }
+
+  char *getHost() {
+    return this->host;
+  }
+
+  void setPath(char *s) {
+    this->path = s;
+  }
+
+  char *getPath() {
+    return this->path;
+  }
+};
+
+static EnpointHandleMotorPosition enpointHandleMotorPosition("http://192.168.213.2", "/v1/esp32/process/motor-position");
+
 void loop(void) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    const char *host = enpointHandleMotorPosition.getHost();
+    const char *path = enpointHandleMotorPosition.getPath();
+    String pathStr = String(path);
+    String hostStr = String(host);
+    hostStr.concat(pathStr);
+    http.begin(hostStr);
+    http.addHeader("Content-Type", "application/json");
+    String body = mapJsonHandleMotorPosition();
+    int httpResponseCode = http.POST(body);
+    if (httpResponseCode < 0) {
+      Serial.print("Error on sending POST: ");
+      Serial.println(httpResponseCode);
+    }
+    http.end();
+  }
   Task1 = xTaskGetHandle("MotorI");
   Task2 = xTaskGetHandle("MotorII");
   Task3 = xTaskGetHandle("MotorIII");
@@ -477,46 +595,7 @@ void loop(void) {
   if (Task4 == NULL) {
     stepper4.clearPort();
   }
-  int num = Serial.read();
-  if (num == 0) {
-    Task1 = xTaskGetHandle("MotorI");
-    if (Task1 != NULL) {
-      vTaskDelete(Task1);
-    }
-    Task2 = xTaskGetHandle("MotorII");
-    if (Task2 != NULL) {
-      vTaskDelete(Task2);
-    }
-    Task3 = xTaskGetHandle("MotorIII");
-    if (Task3 != NULL) {
-      vTaskDelete(Task3);
-    }
-    Task4 = xTaskGetHandle("MotorIIII");
-    if (Task4 != NULL) {
-      vTaskDelete(Task4);
-    }
-  } else if (num == 1) {
-    Task1 = xTaskGetHandle("MotorI");
-    if (Task1 != NULL) {
-      vTaskDelete(Task1);
-    }
-  } else if (num == 2) {
-    Task2 = xTaskGetHandle("MotorII");
-    if (Task2 != NULL) {
-      vTaskDelete(Task2);
-    }
-  } else if (num == 3) {
-    Task3 = xTaskGetHandle("MotorIII");
-    if (Task3 != NULL) {
-      vTaskDelete(Task3);
-    }
-  } else if (num == 4) {
-    Task4 = xTaskGetHandle("MotorIIII");
-    if (Task4 != NULL) {
-      vTaskDelete(Task4);
-    }
-  }
-  delay(1000);
+  delay(500);
 }
 
 void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
@@ -535,7 +614,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
           stepper1.setSpeedMotor(jo["speed"].as<int>());
         }
         GenericData_t dataT = { stepper1.getMoveTo(), stepper1.getSpeedMotor(), stepper1.getPort1(), stepper1.getPort2(), stepper1.getPort3(), stepper1.getPort4(), 1, stepper1.getCurrentPosition(), stepper1.getMode() };
-        xTaskCreatePinnedToCore(motor, stepper1.getName(), 4096, (void *)&dataT, 1, &Task1, 0);
+        xTaskCreatePinnedToCore(motor, stepper1.getName(), 4096, (void *)&dataT, 2, &Task1, 0);
       } else if (jo["index"].as<int>() == 2) {
         Task2 = xTaskGetHandle("MotorII");
         if (Task2 != NULL) {
@@ -546,7 +625,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
           stepper2.setSpeedMotor(jo["speed"].as<int>());
         }
         GenericData_t dataT = { stepper2.getMoveTo(), stepper2.getSpeedMotor(), stepper2.getPort1(), stepper2.getPort2(), stepper2.getPort3(), stepper2.getPort4(), 2, stepper2.getCurrentPosition(), stepper2.getMode() };
-        xTaskCreatePinnedToCore(motor, stepper2.getName(), 4096, (void *)&dataT, 1, &Task2, 1);
+        xTaskCreatePinnedToCore(motor, stepper2.getName(), 4096, (void *)&dataT, 2, &Task2, 1);
       } else if (jo["index"].as<int>() == 3) {
         Task3 = xTaskGetHandle("MotorIII");
         if (Task3 != NULL) {
@@ -557,7 +636,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
           stepper3.setSpeedMotor(jo["speed"].as<int>());
         }
         GenericData_t dataT = { stepper3.getMoveTo(), stepper3.getSpeedMotor(), stepper3.getPort1(), stepper3.getPort2(), stepper3.getPort3(), stepper3.getPort4(), 3, stepper3.getCurrentPosition(), stepper3.getMode() };
-        xTaskCreatePinnedToCore(motor, stepper3.getName(), 4096, (void *)&dataT, 1, &Task3, 0);
+        xTaskCreatePinnedToCore(motor, stepper3.getName(), 4096, (void *)&dataT, 2, &Task3, 0);
       } else if (jo["index"].as<int>() == 4) {
         Task4 = xTaskGetHandle("MotorIIII");
         if (Task4 != NULL) {
@@ -568,7 +647,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
           stepper4.setSpeedMotor(jo["speed"].as<int>());
         }
         GenericData_t dataT = { stepper4.getMoveTo(), stepper4.getSpeedMotor(), stepper4.getPort1(), stepper4.getPort2(), stepper4.getPort3(), stepper4.getPort4(), 4, stepper4.getCurrentPosition(), stepper4.getMode() };
-        xTaskCreatePinnedToCore(motor, stepper4.getName(), 4096, (void *)&dataT, 1, &Task4, 1);
+        xTaskCreatePinnedToCore(motor, stepper4.getName(), 4096, (void *)&dataT, 2, &Task4, 1);
       }
       Serial.printf("Index : %d Value : %d\n", jo["index"].as<int>(), jo["value"].as<long>());
     }
@@ -626,6 +705,27 @@ void handleCancleThreadRunning(AsyncWebServerRequest *request, uint8_t *data, si
       } else {
         Serial.println("Motor number is not found.");
       }
+    }
+    request->send(200, "application/json", "{\"status\":\"success\"}");
+  } catch (...) {
+    request->send(500, "application/json", "{\"status\":\"error\"}");
+  }
+}
+
+void changeHostPathEnpointHandlePosition(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+  DynamicJsonDocument root = mapJsonObject(data);
+  try {
+    if (!root["host"].isNull()) {
+      const char *host = root["host"];
+      char *hostRaw = new char[strlen(host) + 1];
+      strcat(hostRaw, host);
+      enpointHandleMotorPosition.setHost(hostRaw);
+    }
+    if (!root["path"].isNull()) {
+      const char *path = root["path"];
+      char *pathRaw = new char[strlen(path) + 1];
+      strcat(pathRaw, path);
+      enpointHandleMotorPosition.setPath(pathRaw);
     }
     request->send(200, "application/json", "{\"status\":\"success\"}");
   } catch (...) {
