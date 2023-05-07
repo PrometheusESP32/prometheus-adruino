@@ -65,6 +65,7 @@ TaskHandle_t Task1;
 TaskHandle_t Task2;
 TaskHandle_t Task3;
 TaskHandle_t Task4;
+TaskHandle_t TaskInformation;
 
 static int fullStep[4][4] = {
   { 1, 0, 0, 1 }, { 1, 1, 0, 0 }, { 0, 1, 1, 0 }, { 0, 0, 1, 1 }
@@ -540,10 +541,12 @@ class EnpointHandleMotorPosition {
 private:
   char *host;
   char *path;
+  bool active;
 public:
-  EnpointHandleMotorPosition(char *host, char *path) {
+  EnpointHandleMotorPosition(char *host, char *path, bool active) {
     this->host = host;
     this->path = path;
+    this->active = active;
   }
 
   void setHost(char *s) {
@@ -561,27 +564,47 @@ public:
   char *getPath() {
     return this->path;
   }
+
+  void setActive(bool s) {
+    this->active = s;
+  }
+
+  bool getActive() {
+    return this->active;
+  }
 };
 
-static EnpointHandleMotorPosition enpointHandleMotorPosition("http://192.168.1.162:8080", "/api/v1/information");
+static EnpointHandleMotorPosition enpointHandleMotorPosition("http://192.168.1.2", "/prometheus-esp-information-processor-api/api/v1/information", false);
 
-void loop(void) {
-  if (WiFi.status() == WL_CONNECTED) {
+void motorInformation(void *pvParameters) {
+  (void *)pvParameters;
+  const char *host = enpointHandleMotorPosition.getHost();
+  const char *path = enpointHandleMotorPosition.getPath();
+  String pathStr = String(path);
+  String hostStr = String(host);
+  hostStr.concat(pathStr);
+  try {
     HTTPClient http;
-    const char *host = enpointHandleMotorPosition.getHost();
-    const char *path = enpointHandleMotorPosition.getPath();
-    String pathStr = String(path);
-    String hostStr = String(host);
-    hostStr.concat(pathStr);
     http.begin(hostStr);
     http.addHeader("Content-Type", "application/json");
     String body = mapJsonHandleMotorPosition();
+    Serial.println("body : " + body);
     int httpResponseCode = http.POST(body);
     if (httpResponseCode < 0) {
       Serial.print("Error on sending POST: ");
       Serial.println(httpResponseCode);
     }
     http.end();
+    // vTaskDelay(1000 / portTICK_PERIOD_MS);
+  } catch (...) {
+    Serial.println("Error step noti information");
+  }
+  vTaskDelete(TaskInformation);
+}
+
+void loop(void) {
+  if (WiFi.status() == WL_CONNECTED && enpointHandleMotorPosition.getActive()) {
+    xTaskCreatePinnedToCore(motorInformation, "MOTOR_INFORMATION", 4049, NULL, 30, &TaskInformation, xPortGetCoreID());
   }
   Task1 = xTaskGetHandle("MotorI");
   Task2 = xTaskGetHandle("MotorII");
@@ -618,7 +641,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
           stepper1.setSpeedMotor(jo["speed"].as<int>());
         }
         GenericData_t dataT = { stepper1.getMoveTo(), stepper1.getSpeedMotor(), stepper1.getPort1(), stepper1.getPort2(), stepper1.getPort3(), stepper1.getPort4(), 1, stepper1.getCurrentPosition(), stepper1.getMode() };
-        xTaskCreatePinnedToCore(motor, stepper1.getName(), 4096, (void *)&dataT, 2, &Task1, 0);
+        xTaskCreatePinnedToCore(motor, stepper1.getName(), 4096, (void *)&dataT, 20, &Task1, 0);
       } else if (jo["index"].as<int>() == 2) {
         Task2 = xTaskGetHandle("MotorII");
         if (Task2 != NULL) {
@@ -629,7 +652,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
           stepper2.setSpeedMotor(jo["speed"].as<int>());
         }
         GenericData_t dataT = { stepper2.getMoveTo(), stepper2.getSpeedMotor(), stepper2.getPort1(), stepper2.getPort2(), stepper2.getPort3(), stepper2.getPort4(), 2, stepper2.getCurrentPosition(), stepper2.getMode() };
-        xTaskCreatePinnedToCore(motor, stepper2.getName(), 4096, (void *)&dataT, 2, &Task2, 1);
+        xTaskCreatePinnedToCore(motor, stepper2.getName(), 4096, (void *)&dataT, 20, &Task2, 1);
       } else if (jo["index"].as<int>() == 3) {
         Task3 = xTaskGetHandle("MotorIII");
         if (Task3 != NULL) {
@@ -640,7 +663,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
           stepper3.setSpeedMotor(jo["speed"].as<int>());
         }
         GenericData_t dataT = { stepper3.getMoveTo(), stepper3.getSpeedMotor(), stepper3.getPort1(), stepper3.getPort2(), stepper3.getPort3(), stepper3.getPort4(), 3, stepper3.getCurrentPosition(), stepper3.getMode() };
-        xTaskCreatePinnedToCore(motor, stepper3.getName(), 4096, (void *)&dataT, 2, &Task3, 0);
+        xTaskCreatePinnedToCore(motor, stepper3.getName(), 4096, (void *)&dataT, 20, &Task3, 0);
       } else if (jo["index"].as<int>() == 4) {
         Task4 = xTaskGetHandle("MotorIIII");
         if (Task4 != NULL) {
@@ -651,7 +674,7 @@ void handleMotor(AsyncWebServerRequest *request, uint8_t *data, size_t len, size
           stepper4.setSpeedMotor(jo["speed"].as<int>());
         }
         GenericData_t dataT = { stepper4.getMoveTo(), stepper4.getSpeedMotor(), stepper4.getPort1(), stepper4.getPort2(), stepper4.getPort3(), stepper4.getPort4(), 4, stepper4.getCurrentPosition(), stepper4.getMode() };
-        xTaskCreatePinnedToCore(motor, stepper4.getName(), 4096, (void *)&dataT, 2, &Task4, 1);
+        xTaskCreatePinnedToCore(motor, stepper4.getName(), 4096, (void *)&dataT, 20, &Task4, 1);
       }
       Serial.printf("Index : %d Value : %d\n", jo["index"].as<int>(), jo["value"].as<long>());
     }
@@ -730,6 +753,10 @@ void changeHostPathEnpointHandlePosition(AsyncWebServerRequest *request, uint8_t
       char *pathRaw = new char[strlen(path) + 1];
       strcat(pathRaw, path);
       enpointHandleMotorPosition.setPath(pathRaw);
+    }
+    if (!root["active"].isNull()) {
+      bool path = root["active"].as<bool>();
+      enpointHandleMotorPosition.setActive(path);
     }
     request->send(200, "application/json", "{\"status\":\"success\"}");
   } catch (...) {
